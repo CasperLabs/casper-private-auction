@@ -1,0 +1,18 @@
+[package]
+name = "casper-private-auction-installer"
+version = "0.1.0"
+authors = ["Alexander Limonov <alimonov@casperlabs.io>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+casper-contract = { git = "https://github.com/casper-network/casper-node", branch = "dev"}
+casper-types = { git = "https://github.com/casper-network/casper-node", branch = "dev"}
+
+[[bin]]
+name = "casper-private-auction-installer"
+path = "src/main.rs"
+bench = false
+doctest = false
+test = false
