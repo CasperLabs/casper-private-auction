@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 casper-contract = { git = "https://github.com/casper-network/casper-node", branch = "dev"}
 casper-types = { git = "https://github.com/casper-network/casper-node", branch = "dev"}
+casper-private-auction-core = { path = "../casper-private-auction-core"}
 
 [[bin]]
 name = "casper-private-auction-installer"

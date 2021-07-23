@@ -2,27 +2,25 @@
 #![no_main]
 
 extern crate alloc;
-use casper_types::{EntryPoints, ContractHash, Key, EntryPoint, Parameter, CLType, EntryPointAccess, EntryPointType, runtime_args, RuntimeArgs};
+use casper_types::{ApiError, EntryPoints, ContractHash, Key, EntryPoint, Parameter, CLType, EntryPointAccess, EntryPointType, runtime_args, RuntimeArgs, U256, U512};
 use casper_contract::{unwrap_or_revert::UnwrapOrRevert, contract_api::{runtime, storage}};
 use alloc::{vec, string::String};
+use casper_private_auction_core::create_auction_named_keys;
 
 #[no_mangle]
-pub extern "C" fn transfer_back() {
-    let token_contract_hash = ContractHash::new(runtime::get_named_arg::<Key>("token_contract_hash").into_hash().unwrap_or_revert());
-    let sender_key = runtime::get_named_arg::<Key>("sender");
-    let recipient_key = runtime::get_named_arg::<Key>("recipient");
+pub extern "C" fn bid() {
 
-    runtime::call_contract(
-        token_contract_hash,
-        "transfer_token",
-        runtime_args! {
-            "sender" => sender_key,
-            "recipient" => recipient_key,
-            "token_id" => runtime::get_named_arg::<String>("token_id"),
-        },
-    )
 }
 
+#[no_mangle]
+pub extern "C" fn cancel_bid() {
+
+}
+
+#[no_mangle]
+pub extern "C" fn finalize() {
+
+}
 
 #[no_mangle]
 pub extern "C" fn call() {
@@ -41,10 +39,10 @@ pub extern "C" fn call() {
         EntryPointType::Contract,
     ));
 
-    let _ = storage::new_contract(
+    let (_, _) = storage::new_locked_contract(
         entry_points,
-        None,
-        Some(String::from("bag_hodler_package_hash")),
-        Some(String::from("bag_hodler_access_token")),
+        Some(create_auction_named_keys()),
+        Some(String::from("auction_package_hash")),
+        Some(String::from("auction_access_token")),
     );
 }

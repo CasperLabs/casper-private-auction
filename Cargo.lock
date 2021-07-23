@@ -109,6 +109,7 @@ name = "casper-private-auction-installer"
 version = "0.1.0"
 dependencies = [
  "casper-contract",
+ "casper-private-auction-core",
  "casper-types",
 ]
 
