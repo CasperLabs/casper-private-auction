@@ -2,7 +2,7 @@
 #![no_main]
 
 extern crate alloc;
-use casper_types::{ApiError, EntryPoints, ContractHash, Key, EntryPoint, Parameter, CLType, EntryPointAccess, EntryPointType, runtime_args, RuntimeArgs, U256, U512};
+use casper_types::{ApiError, EntryPoints, ContractHash, Key, EntryPoint, Parameter, CLTyrupe, EntryPointAccess, EntryPointType, runtime_args, RuntimeArgs, U256, U512};
 use casper_contract::{unwrap_or_revert::UnwrapOrRevert, contract_api::{runtime, storage}};
 use alloc::{vec, string::String};
 use casper_private_auction_core::create_auction_named_keys;

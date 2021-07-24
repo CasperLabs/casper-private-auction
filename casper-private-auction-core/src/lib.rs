@@ -1,9 +1,10 @@
 #![no_std]
 
 extern crate alloc;
-use casper_types::{ApiError, contracts::NamedKeys, U256, U512, Key, ContractHash};
+use casper_types::{ApiError, contracts::NamedKeys, U256, U512, Key, ContractHash, CLType, CLValue};
 use casper_contract::{unwrap_or_revert::UnwrapOrRevert, contract_api::{runtime, storage}};
 use alloc::string::String;
+use alloc::collections::BTreeMap;
 
 const NFT_HASH_ARG: &str = "token_contract_hash";
 const NFT_HASH: &str = NFT_HASH_ARG;
@@ -26,13 +27,6 @@ const START_PRICE: &str = START_PRICE_ARG;
 const PRICE: &str = "current_price";
 const BIDS: &str = "bids";
 
-pub fn contract_package_hash_match() -> ContractHash {
-    match runtime::get_named_arg(NFT_HASH_ARG) {
-        Key::Hash(addr) => ContractHash(addr),
-        _ => runtime::revert(ApiError::InvalidArgument),
-    }
-}
-
 pub fn english_format_match() -> bool {
     match &runtime::get_named_arg::<String>(FORMAT_ARG)[..] {
         ENGLISH_MATCH => true,
@@ -41,7 +35,7 @@ pub fn english_format_match() -> bool {
     }
 }
 
-pub fn auction_times_match() -> (U64, U64, U64) {
+pub fn auction_times_match() -> (u64, u64, u64) {
     match (runtime::get_named_arg(START_ARG), runtime::get_named_arg(CANCEL_ARG), runtime::get_named_arg(END_ARG)) {
         (start, cancel, end) if start <= cancel && cancel <= end => (start, cancel, end),
         _ => runtime::revert(ApiError::InvalidArgument),
@@ -50,7 +44,7 @@ pub fn auction_times_match() -> (U64, U64, U64) {
 
 pub fn create_auction_named_keys() -> NamedKeys {
     // Get the auction parameters from the command line args
-    let token_contract_hash = contract_package_hash_match();
+    let token_contract_hash = ContractHash::new(runtime::get_named_arg::<Key>(NFT_HASH_ARG).into_hash().unwrap_or_revert());
     let english_format = english_format_match();
     // Consider optimizing away the storage of start price key for English auctions
     let start_price = match (english_format, runtime::get_named_arg::<Option<U512>>(START_PRICE_ARG)) {
@@ -59,18 +53,18 @@ pub fn create_auction_named_keys() -> NamedKeys {
         _ => runtime::revert(ApiError::InvalidArgument),
     };
     let token_id: U256 = runtime::get_named_arg(TOKEN_ID_ARG);
-    let (start_time, cancellation_time, end_time): (U64, U64, U64) = auction_times_match();
+    let (start_time, cancellation_time, end_time): (u64, u64, u64) = auction_times_match();
     let reserve_price: U512 = runtime::get_named_arg(RESERVE_ARG);
     let current_price: U512 = reserve_price.clone();
-
-    // Create the bid dictionary
-    storage::new_dictionary(BIDS).unwrap_or_revert();
+    let bids: BTreeMap<Key, U512> = BTreeMap::new();
 
     // Create and return the named keys struct with parameters and the dictionary
     let mut named_keys = NamedKeys::new();
-    for (name, value) in [(NFT_HASH, token_contract_hash), (ENGLISH_FORMAT, english_format), (TOKEN_ID, token_id), (START, start_time), (CANCEL, cancellation_time), (END, end_time), (START_PRICE, start_price), (RESERVE, reserve_price), (PRICE, current_price)] {
+
+    let vars: [(&str, CLValue); 10] = [(NFT_HASH, token_contract_hash.into()), (ENGLISH_FORMAT, english_format.into()), (TOKEN_ID, token_id.into()), (START, start_time.into()), (CANCEL, cancellation_time.into()), (END, end_time.into()), (START_PRICE, start_price.into()), (RESERVE, reserve_price.into()), (PRICE, current_price.into()), (BIDS, bids.into())];
+    for (name, value) in vars {
         let value_uref = storage::new_uref(value);
-        named_keys.insert(name, value_uref.into());
+        named_keys.insert(name.into(), value_uref.into());
     }
     return named_keys
 }

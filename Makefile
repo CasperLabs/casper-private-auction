@@ -1,5 +1,5 @@
 prepare:
-	rustup default nightly-2020-12-16-x86_64-unknown-linux-gnu
+	rustup default nightly-2021-06-17-x86_64-unknown-linux-gnu
 	rustup target add wasm32-unknown-unknown
 
 build-contract:
