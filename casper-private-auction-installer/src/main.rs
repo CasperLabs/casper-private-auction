@@ -19,7 +19,7 @@ pub extern "C" fn cancel_bid() {
 
 #[no_mangle]
 pub extern "C" fn finalize() {
-    auction_finalize();
+    auction_finalize(true);
 }
 
 #[no_mangle]

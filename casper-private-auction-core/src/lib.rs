@@ -295,7 +295,7 @@ pub fn auction_bid() -> () {
             if bid >= get_current_price() {
                 add_bid(bidder, bidder_purse, bid);
                 reset_winner(Some(bidder), Some(bid));
-                auction_finalize()
+                auction_finalize(false);
             }
             else {
                 runtime::revert(ApiError::User(ERROR_BID_TOO_LOW));
@@ -368,7 +368,7 @@ fn auction_transfer(winner: Option<Key>) -> () {
     }
 }
 
-pub fn auction_finalize() -> () {
+pub fn auction_finalize(time_check: bool) -> () {
     // Get finalization and check if we're done
     let finalized = read_named_key_value::<bool>(FINALIZED);
     if finalized {
@@ -378,8 +378,10 @@ pub fn auction_finalize() -> () {
     // We're not finalized, so let's get all the other arguments, as well as time to make sure we're not too early
     let end_time = read_named_key_value::<u64>(END);
     let block_time = u64::from(runtime::get_blocktime());
-    if block_time < end_time {
-        runtime::revert(ApiError::User(ERROR_EARLY))
+    if time_check {
+        if block_time < end_time {
+            runtime::revert(ApiError::User(ERROR_EARLY))
+        }
     }
 
     // TODO: DO NOT FORGET ERROR HANDLING FOR BAD KEYS
