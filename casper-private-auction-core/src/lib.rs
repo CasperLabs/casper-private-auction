@@ -246,7 +246,7 @@ pub fn auction_bid() -> () {
                     runtime::revert(ApiError::User(ERROR_BID_TOO_LOW))
                 } else {
                     let auction_purse = read_named_key_value::<URef>(AUCTION_PURSE);
-                    system::transfer_from_purse_to_purse(bidder_purse, auction_purse, current_bid - &bid, None);
+                    system::transfer_from_purse_to_purse(bidder_purse, auction_purse, &bid - current_bid, None);
                     bids.insert(bidder, (bid, bidder_purse));
                     write_named_key_value(BIDS, bids);
                     return ();
