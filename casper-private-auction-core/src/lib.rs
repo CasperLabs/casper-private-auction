@@ -79,7 +79,7 @@ fn read_named_key_value<T: CLTyped + FromBytes>(name: &str) -> T {
     return value
 }
 
-fn write_named_key_value<T: CLTyped + ToBytes>(name: &str, value: T) -> () {
+fn write_named_key_value<T: CLTyped + ToBytes>(name: &str, value: T)  {
     let uref = read_named_key_uref(name);
     storage::write(uref, value);
 }
@@ -142,7 +142,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
 }
 
 // TODO: Consider refactoring and combining with named arg creation to avoid duplicating host side function calls
-pub fn auction_receive_token(auction_key: Key) -> () {
+pub fn auction_receive_token(auction_key: Key)  {
     let token_owner = Key::Account(runtime::get_caller());
     let token_contract_hash = ContractHash::new(runtime::get_named_arg::<Key>(NFT_HASH_ARG).into_hash().unwrap_or_revert());
     let token_id_str = runtime::get_named_arg::<U256>(TOKEN_ID_ARG).to_string();
@@ -158,7 +158,7 @@ pub fn auction_receive_token(auction_key: Key) -> () {
     )
 }
 
-fn auction_transfer_token(recipient: Key) -> () {
+fn auction_transfer_token(recipient: Key)  {
     let auction_key: Key = {
         let call_stack = runtime::get_call_stack();
         let caller: CallStackElement = call_stack.last().unwrap_or_revert().clone();
@@ -198,7 +198,7 @@ fn get_bidder(session: bool) -> Key {
     return bidder;
 }
 
-fn reset_winner(winner: Option<Key>, bid: Option<U512>) -> () {
+fn reset_winner(winner: Option<Key>, bid: Option<U512>)  {
     let winner_uref = read_named_key_uref(WINNER);
     let winning_bid_uref = read_named_key_uref(PRICE);
     storage::write(winner_uref, winner);
@@ -236,8 +236,8 @@ fn get_current_price() -> U512 {
     }
 }
 
-pub fn auction_bid() -> () {
-    fn add_bid(bidder: Key, bidder_purse: URef, bid: U512) -> () {
+pub fn auction_bid()  {
+    fn add_bid(bidder: Key, bidder_purse: URef, bid: U512)  {
         // Get the existing bid, if any
         let mut bids = read_named_key_value::<BTreeMap<Key, (U512, URef)>>(BIDS);
         match bids.get(&bidder) {
@@ -305,7 +305,7 @@ pub fn auction_bid() -> () {
 
 }
 
-pub fn auction_cancel_bid() -> () {
+pub fn auction_cancel_bid()  {
     let bidder = get_bidder(false);
     let block_time = u64::from(runtime::get_blocktime());
     let cancellation_time = read_named_key_value::<u64>(CANCEL);
@@ -330,15 +330,15 @@ pub fn auction_cancel_bid() -> () {
     } else { return () }
 }
 
-fn auction_allocate(winner: Option<Key>) -> () {
+fn auction_allocate(winner: Option<Key>)  {
     match winner {
         Some(key) => auction_transfer_token(key),
         _ => auction_transfer_token(read_named_key_value::<Key>(OWNER)),
     }
 }
 
-fn auction_transfer(winner: Option<Key>) -> () {
-    fn return_bids(mut bids: BTreeMap<Key, (U512, URef)>, auction_purse: URef) -> () {
+fn auction_transfer(winner: Option<Key>)  {
+    fn return_bids(mut bids: BTreeMap<Key, (U512, URef)>, auction_purse: URef)  {
         for (_, (bid, purse)) in &bids {
             system::transfer_from_purse_to_purse(auction_purse, purse.clone(), bid.clone(), None);
         }
@@ -368,7 +368,7 @@ fn auction_transfer(winner: Option<Key>) -> () {
     }
 }
 
-pub fn auction_finalize(time_check: bool) -> () {
+pub fn auction_finalize(time_check: bool)  {
     // Get finalization and check if we're done
     let finalized = read_named_key_value::<bool>(FINALIZED);
     if finalized {
