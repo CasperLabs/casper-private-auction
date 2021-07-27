@@ -1,9 +1,16 @@
+#[allow(unused)]
 #[cfg(test)]
 mod tests {
     use casper_engine_test_support::{Code, Hash, SessionBuilder, TestContext, TestContextBuilder};
     use casper_types::{
-        account::AccountHash, bytesrepr::FromBytes, CLTyped, Key, PublicKey,
-        RuntimeArgs, SecretKey, U512,
+        account::AccountHash,
+        bytesrepr::FromBytes,
+        CLTyped,
+        Key,
+        PublicKey,
+        RuntimeArgs,
+        SecretKey,
+        U512,
         //runtime_args, URef,
     };
 
@@ -43,10 +50,7 @@ mod tests {
             context.run(session);
 
             let contract_hash = context
-                .query(
-                    admin_addr,
-                    &[CONTRACT_HASH_NAMED_KEY.to_string()],
-                )
+                .query(admin_addr, &[CONTRACT_HASH_NAMED_KEY.to_string()])
                 .unwrap()
                 .into_t()
                 .unwrap();
@@ -64,10 +68,7 @@ mod tests {
             self.context
                 .query(
                     self.admin,
-                    &[
-                        CONTRACT_HASH_NAMED_KEY.to_string(),
-                        key.to_string(),
-                    ],
+                    &[CONTRACT_HASH_NAMED_KEY.to_string(), key.to_string()],
                 )
                 .unwrap()
                 .into_t()
@@ -107,14 +108,12 @@ mod tests {
     #[test]
     fn test_set_deposit() {
         let _contract = AccountInfoContract::deploy();
-        assert!(true);
     }
 
     #[test]
     #[should_panic]
     fn test_set_deposit_security() {
         let _contract = AccountInfoContract::deploy();
-        assert!(false);
     }
 }
 

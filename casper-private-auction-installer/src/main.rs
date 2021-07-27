@@ -2,10 +2,16 @@
 #![no_main]
 
 extern crate alloc;
-use casper_types::{EntryPoints, EntryPoint, Parameter, CLType, EntryPointAccess, EntryPointType, Key};
-use casper_contract::{contract_api::storage};
-use alloc::{vec, string::String};
-use casper_private_auction_core::{BID, BID_PURSE, BID_FUNC, CANCEL_FUNC, FINALIZE_FUNC, AUCTION_ACCESS_TOKEN, auction_bid, auction_cancel_bid, auction_finalize, create_auction_named_keys, auction_receive_token, AUCTION_CONTRACT_HASH};
+use alloc::{string::String, vec};
+use casper_contract::contract_api::storage;
+use casper_private_auction_core::{
+    auction_bid, auction_cancel_bid, auction_finalize, auction_receive_token,
+    create_auction_named_keys, AUCTION_ACCESS_TOKEN, AUCTION_CONTRACT_HASH, BID, BID_FUNC,
+    BID_PURSE, CANCEL_FUNC, FINALIZE_FUNC,
+};
+use casper_types::{
+    CLType, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Key, Parameter,
+};
 
 #[no_mangle]
 pub extern "C" fn bid() {
@@ -30,7 +36,7 @@ pub extern "C" fn call() {
         String::from(BID_FUNC),
         vec![
             Parameter::new(BID, CLType::U512),
-            Parameter::new(BID_PURSE, CLType::URef)
+            Parameter::new(BID_PURSE, CLType::URef),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
