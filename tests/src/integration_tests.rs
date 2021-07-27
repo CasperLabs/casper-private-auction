@@ -63,6 +63,7 @@ mod tests {
             }
         }
 
+        /// Query a non-dictionary entry from the TestContext
         fn query<T: FromBytes + CLTyped>(&self, key: &str) -> T {
             println!("{:?}", key);
             self.context
@@ -75,6 +76,7 @@ mod tests {
                 .unwrap()
         }
 
+        /// Query a dictionary entry from the TestContext
         fn query_dictionary_value<T: CLTyped + FromBytes>(
             &self,
             dict_name: &str,
@@ -95,6 +97,7 @@ mod tests {
             }
         }
 
+        /// Call a and entrypoint with the give argument on the TestContest.
         fn call(&mut self, caller: &AccountHash, function: &str, args: RuntimeArgs) {
             let session_code = Code::Hash(self.contract_hash, function.to_string());
             let session = SessionBuilder::new(session_code, args)

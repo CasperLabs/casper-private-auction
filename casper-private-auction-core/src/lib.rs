@@ -54,6 +54,7 @@ pub const FINALIZE_FUNC: &str = "finalize";
 pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_hash";
 pub const AUCTION_ACCESS_TOKEN: &str = "auction_access_token";
 
+/// Macro that fills a NamedKeys list from the (name, value) list provided as argument. 
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
         {
@@ -64,14 +65,16 @@ macro_rules! named_keys {
     };
 }
 
-// TODO: This needs A LOT of error handling because we don't want an auction being left in an unrecoverable state if the named keys are bad!
+/// Wrapper function for fetching a URef from the contexts named keys.
 fn read_named_key_uref(name: &str) -> URef {
+    // TODO: This needs A LOT of error handling because we don't want an auction being left in an unrecoverable state if the named keys are bad!
     runtime::get_key(name)
         .unwrap_or_revert_with(ApiError::MissingKey)
         .into_uref()
         .unwrap_or_revert_with(ApiError::UnexpectedKeyVariant)
 }
 
+/// Wrapper function for fetching an unspecified type from the contexts named keys.
 // TODO: This needs A LOT of error handling because we don't want an auction being left in an unrecoverable state if the named keys are bad!
 fn read_named_key_value<T: CLTyped + FromBytes>(name: &str) -> T {
     let uref = read_named_key_uref(name);
@@ -81,6 +84,7 @@ fn read_named_key_value<T: CLTyped + FromBytes>(name: &str) -> T {
         .unwrap_or_revert_with(ApiError::ValueNotFound)
 }
 
+/// Wrapper function for writing a value to the contexts named keys. Overwrites existing entries.
 fn write_named_key_value<T: CLTyped + ToBytes>(name: &str, value: T) {
     let uref = read_named_key_uref(name);
     storage::write(uref, value);
