@@ -7,5 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-casper-contract = { git = "https://github.com/casper-network/casper-node", branch = "dev"}
-casper-types = { git = "https://github.com/casper-network/casper-node", branch = "dev"}
+casper-contract = "1.3.1"
+casper-types = "1.3.1"

@@ -1,7 +1,7 @@
 #![no_std]
 
 extern crate alloc;
-use casper_types::{ApiError, contracts::NamedKeys, U256, U512, Key, ContractHash, URef, CLTyped, bytesrepr::FromBytes, runtime_args, RuntimeArgs, system::CallStackElement};
+use casper_types::{ApiError, contracts::NamedKeys, U512, Key, ContractHash, URef, CLTyped, bytesrepr::FromBytes, runtime_args, RuntimeArgs, system::CallStackElement};
 use casper_contract::{unwrap_or_revert::UnwrapOrRevert, contract_api::{runtime, storage, system}};
 use alloc::string::{String, ToString};
 use alloc::collections::BTreeMap;
@@ -10,7 +10,7 @@ use casper_types::bytesrepr::ToBytes;
 // TODO: Either separate arg name and named key consistently, or not at all
 const OWNER: &str = "token_owner";
 const SELLER_PURSE: &str = "seller_purse";
-const AUCTION_PURSE: &str = "auction_purse";
+pub const AUCTION_PURSE: &str = "auction_purse";
 const NFT_HASH_ARG: &str = "token_contract_hash";
 const NFT_HASH: &str = NFT_HASH_ARG;
 const FORMAT_ARG: &str = "format";
@@ -40,6 +40,10 @@ const ERROR_BID_TOO_LOW: u16 = 3;
 const ERROR_ALREADY_FINAL: u16 = 4;
 const ERROR_BAD_STATE: u16 = 5;
 const ERROR_NO_BID: u16 = 6;
+const ERROR_LATE_CANCELLATION: u16 = 7;
+const ERROR_UNKNOWN_FORMAT: u16 = 8;
+const ERROR_INVALID_TIMES: u16 = 9;
+const ERROR_INVALID_PRICES: u16 = 10;
 pub const BID: &str = "bid";
 pub const BID_PURSE: &str = "bid_purse";
 pub const BID_FUNC: &str = BID;
@@ -88,14 +92,15 @@ fn english_format_match() -> bool {
     match &runtime::get_named_arg::<String>(FORMAT_ARG)[..] {
         ENGLISH_MATCH => true,
         DUTCH_MATCH => false,
-        _ => runtime::revert(ApiError::InvalidArgument),
+        _ => runtime::revert(ApiError::User(ERROR_UNKNOWN_FORMAT)),
     }
 }
 
+// TODO: Throwing a custom error may have removed the need to check that blocktime (provided in milliseconds) is less than start time (Unix era time is customarily in seconds)
 fn auction_times_match() -> (u64, u64, u64) {
     match (runtime::get_named_arg(START_ARG), runtime::get_named_arg(CANCEL_ARG), runtime::get_named_arg(END_ARG)) {
-        (start, cancel, end) if start <= cancel && cancel <= end => (start, cancel, end),
-        _ => runtime::revert(ApiError::InvalidArgument),
+        (start, cancel, end) if u64::from(runtime::get_blocktime()) <= start && start <= cancel && cancel <= end => (start, cancel, end),
+        _ => runtime::revert(ApiError::User(ERROR_INVALID_TIMES)),
     }
 }
 
@@ -104,18 +109,21 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let token_owner = Key::Account(runtime::get_caller());
     // Get the beneficiary purse
     let seller_purse = runtime::get_named_arg::<URef>(SELLER_PURSE);
+
     // Set up the purse
-    let auction_purse = system::create_purse();
+    //let auction_purse = system::create_purse();
+
     // Get the auction parameters from the command line args
+    // TODO: This is broken, because there is no CLValue corresponding to a ContractHash! Note that that token transfers work because call_contract *does* expect a ContractHash
     let token_contract_hash = ContractHash::new(runtime::get_named_arg::<Key>(NFT_HASH_ARG).into_hash().unwrap_or_revert());
     let english_format = english_format_match();
     // Consider optimizing away the storage of start price key for English auctions
     let (start_price, reserve_price) = match (english_format, runtime::get_named_arg::<Option<U512>>(START_PRICE_ARG), runtime::get_named_arg::<U512>(RESERVE_ARG)) {
         (false, Some(p), r) if p >= r => (Some(p), r),
         (true, None, r) => (None, r),
-        _ => runtime::revert(ApiError::InvalidArgument),
+        _ => runtime::revert(ApiError::User(ERROR_INVALID_PRICES)),
     };
-    let token_id: U256 = runtime::get_named_arg(TOKEN_ID_ARG);
+    let token_id = runtime::get_named_arg::<String>(TOKEN_ID_ARG);
     let (start_time, cancellation_time, end_time): (u64, u64, u64) = auction_times_match();
     let winning_bid: Option<U512> = None;
     let current_winner: Option<Key> = None;
@@ -126,7 +134,9 @@ pub fn create_auction_named_keys() -> NamedKeys {
     return named_keys!(
         (OWNER, token_owner),
         (SELLER_PURSE, seller_purse),
-        (AUCTION_PURSE, auction_purse),
+
+        //(AUCTION_PURSE, auction_purse),
+
         (NFT_HASH, token_contract_hash),
         (ENGLISH_FORMAT, english_format),
         (TOKEN_ID, token_id),
@@ -145,7 +155,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
 pub fn auction_receive_token(auction_key: Key) -> () {
     let token_owner = Key::Account(runtime::get_caller());
     let token_contract_hash = ContractHash::new(runtime::get_named_arg::<Key>(NFT_HASH_ARG).into_hash().unwrap_or_revert());
-    let token_id_str = runtime::get_named_arg::<U256>(TOKEN_ID_ARG).to_string();
+    let token_id_str = runtime::get_named_arg::<String>(TOKEN_ID_ARG).to_string();
 
     runtime::call_contract(
         token_contract_hash,
@@ -169,8 +179,9 @@ fn auction_transfer_token(recipient: Key) -> () {
         };
         auction_contract_key
     };
+
     let token_contract_hash = ContractHash::new(read_named_key_value::<Key>(NFT_HASH).into_hash().unwrap_or_revert());
-    let token_id_str = read_named_key_value::<U256>(TOKEN_ID);
+    let token_id_str = read_named_key_value::<String>(TOKEN_ID);
 
     runtime::call_contract(
         token_contract_hash,
@@ -183,10 +194,13 @@ fn auction_transfer_token(recipient: Key) -> () {
     )
 }
 
-fn get_bidder(session: bool) -> Key {
+// TODO: This probably needs to just always get the next to last one, if bid entry point is now Contract type
+fn get_bidder() -> Key {
     // Figure out who is trying to bid and what their bid is
     let mut call_stack = runtime::get_call_stack();
-    if session { () } else { call_stack.pop(); () };
+    call_stack.pop();
+
+    //if session { () } else { call_stack.pop(); () };
 
     let caller: CallStackElement = call_stack.last().unwrap_or_revert().clone();
     let bidder = match caller {
@@ -219,6 +233,7 @@ fn find_new_winner() -> Option<(Key, U512)> {
 // TODO: EXTREMELY CRUDE
 fn get_current_price() -> U512 {
     let block_time = u64::from(runtime::get_blocktime());
+    // TODO: start_price is actually an Option<U512>
     let start_price = read_named_key_value::<U512>(START_PRICE);
     let end_price = read_named_key_value::<U512>(RESERVE);
     let start_time = read_named_key_value::<u64>(START);
@@ -236,6 +251,7 @@ fn get_current_price() -> U512 {
     }
 }
 
+// TODO: Consider removing the bid_purse argument
 pub fn auction_bid() -> () {
     fn add_bid(bidder: Key, bidder_purse: URef, bid: U512) -> () {
         // Get the existing bid, if any
@@ -245,19 +261,17 @@ pub fn auction_bid() -> () {
                 if &bid <= current_bid {
                     runtime::revert(ApiError::User(ERROR_BID_TOO_LOW))
                 } else {
-                    let auction_purse = read_named_key_value::<URef>(AUCTION_PURSE);
+                    let auction_purse = read_named_key_uref(AUCTION_PURSE);
                     system::transfer_from_purse_to_purse(bidder_purse, auction_purse, &bid - current_bid, None);
                     bids.insert(bidder, (bid, bidder_purse));
                     write_named_key_value(BIDS, bids);
-                    return ();
                 },
             _ =>
                 {
-                    let auction_purse = read_named_key_value::<URef>(AUCTION_PURSE);
+                    let auction_purse = read_named_key_uref(AUCTION_PURSE);
                     system::transfer_from_purse_to_purse(bidder_purse, auction_purse, bid, None);
                     bids.insert(bidder, (bid, bidder_purse));
                     write_named_key_value(BIDS, bids);
-                    return ();
                 },
         }
     }
@@ -271,7 +285,7 @@ pub fn auction_bid() -> () {
     }
 
     // Figure out who is trying to bid and what their bid is
-    let bidder= get_bidder(true);
+    let bidder= get_bidder();
     let bid = runtime::get_named_arg::<U512>(BID);
     if bid < read_named_key_value::<U512>(RESERVE) {
         runtime::revert(ApiError::User(ERROR_BID_TOO_LOW));
@@ -306,7 +320,7 @@ pub fn auction_bid() -> () {
 }
 
 pub fn auction_cancel_bid() -> () {
-    let bidder = get_bidder(false);
+    let bidder = get_bidder();
     let block_time = u64::from(runtime::get_blocktime());
     let cancellation_time = read_named_key_value::<u64>(CANCEL);
 
@@ -315,7 +329,7 @@ pub fn auction_cancel_bid() -> () {
         match bids.get(&bidder) {
             Some((current_bid, last_purse)) =>
                 {
-                    let auction_purse = read_named_key_value::<URef>(AUCTION_PURSE);
+                    let auction_purse = read_named_key_uref(AUCTION_PURSE);
                     system::transfer_from_purse_to_purse(auction_purse, last_purse.clone(), current_bid.clone(), None);
                     bids.remove(&bidder);
                     write_named_key_value(BIDS, bids);
@@ -327,7 +341,9 @@ pub fn auction_cancel_bid() -> () {
                 },
             _ => runtime::revert(ApiError::User(ERROR_NO_BID)),
         }
-    } else { return () }
+    } else {
+        runtime::revert(ApiError::User(ERROR_LATE_CANCELLATION))
+    }
 }
 
 fn auction_allocate(winner: Option<Key>) -> () {
@@ -347,7 +363,7 @@ fn auction_transfer(winner: Option<Key>) -> () {
     }
     match winner {
         Some(key) => {
-            let auction_purse = read_named_key_value::<URef>(AUCTION_PURSE);
+            let auction_purse = read_named_key_uref(AUCTION_PURSE);
             let seller_purse = read_named_key_value::<URef>(SELLER_PURSE);
             let mut bids = read_named_key_value::<BTreeMap<Key,(U512, URef)>>(BIDS);
             match bids.get(&key) {
@@ -361,7 +377,7 @@ fn auction_transfer(winner: Option<Key>) -> () {
             }
         },
         _ => {
-            let auction_purse = read_named_key_value::<URef>(AUCTION_PURSE);
+            let auction_purse = read_named_key_uref(AUCTION_PURSE);
             let mut bids = read_named_key_value::<BTreeMap<Key,(U512, URef)>>(BIDS);
             return_bids(bids, auction_purse);
         },
