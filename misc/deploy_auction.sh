@@ -10,10 +10,10 @@ RESERVE_PRICE=$5
 STARTING_PRICE=$6
 # current milliseconds + 1.5 minutes
 START_TIME=`expr $(date "+%s%3N") + 90000`
+# plus 5 minutes
+CANCEL_TIME=`expr $START_TIME + 300000`
 # plus 10 minutes
-CANCEL_TIME=`expr $START_TIME + 600000`
-# plus 20 minutes
-END_TIME=`expr $START_TIME + 1200000`
+END_TIME=`expr $START_TIME + 600000`
 
 AUCTION_INSTALL_DEPLOY=$(casper-client put-deploy\
   --chain-name $NETWORK_NAME\

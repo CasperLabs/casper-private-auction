@@ -132,7 +132,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let winning_bid: Option<U512> = None;
     let current_winner: Option<Key> = None;
     // Consider optimizing away for Dutch auctions
-    let bids: BTreeMap<Key, (U512, URef)> = BTreeMap::new();
+    let bids: BTreeMap<AccountHash, U512> = BTreeMap::new();
     let finalized = false;
 
     return named_keys!(
@@ -216,20 +216,20 @@ fn get_bidder() -> Key {
     return bidder;
 }
 
-fn reset_winner(winner: Option<Key>, bid: Option<U512>) -> () {
+fn reset_winner(winner: Option<AccountHash>, bid: Option<U512>) -> () {
     let winner_uref = read_named_key_uref(WINNER);
     let winning_bid_uref = read_named_key_uref(PRICE);
     storage::write(winner_uref, winner);
     storage::write(winning_bid_uref, bid);
 }
 
-fn find_new_winner() -> Option<(Key, U512)> {
-    let bids = read_named_key_value::<BTreeMap<Key, (U512, URef)>>(BIDS);
+fn find_new_winner() -> Option<(AccountHash, U512)> {
+    let bids = read_named_key_value::<BTreeMap<AccountHash, U512>>(BIDS);
     let winning_pair = bids
         .iter()
-        .max_by_key( |p| p.1.0 );
+        .max_by_key( |p| p.1 );
     match winning_pair {
-        Some((key, (bid, _))) => Some((key.clone(), bid.clone())),
+        Some((key, bid)) => Some((key.clone(), bid.clone())),
         _ => None,
     }
 }
@@ -258,26 +258,25 @@ fn get_current_price() -> U512 {
 
 }
 
-// TODO: Consider removing storage of bid purses and refunding to accounts directly
 pub fn auction_bid() -> () {
-    fn add_bid(bidder: Key, bidder_purse: URef, bid: U512) -> () {
+    fn add_bid(bidder: AccountHash, bidder_purse: URef, bid: U512) -> () {
         // Get the existing bid, if any
-        let mut bids = read_named_key_value::<BTreeMap<Key, (U512, URef)>>(BIDS);
+        let mut bids = read_named_key_value::<BTreeMap<AccountHash, U512>>(BIDS);
         match bids.get(&bidder) {
-            Some((current_bid, _)) =>
+            Some(current_bid) =>
                 if &bid <= current_bid {
                     runtime::revert(ApiError::User(ERROR_BID_TOO_LOW))
                 } else {
                     let auction_purse = read_named_key_uref(AUCTION_PURSE);
                     system::transfer_from_purse_to_purse(bidder_purse, auction_purse, &bid - current_bid, None);
-                    bids.insert(bidder, (bid, bidder_purse));
+                    bids.insert(bidder, bid);
                     write_named_key_value(BIDS, bids);
                 },
             _ =>
                 {
                     let auction_purse = read_named_key_uref(AUCTION_PURSE);
                     system::transfer_from_purse_to_purse(bidder_purse, auction_purse, bid, None);
-                    bids.insert(bidder, (bid, bidder_purse));
+                    bids.insert(bidder, bid);
                     write_named_key_value(BIDS, bids);
                 },
         }
@@ -301,7 +300,7 @@ pub fn auction_bid() -> () {
     }
 
     // Figure out who is trying to bid and what their bid is
-    let bidder= get_bidder();
+    let bidder= get_bidder().into_account().unwrap_or_revert_with(ApiError::User(ERROR_INVALID_CALLER));
     let bid = runtime::get_named_arg::<U512>(BID);
     if bid < read_named_key_value::<U512>(RESERVE) {
         runtime::revert(ApiError::User(ERROR_BID_TOO_LOW));
@@ -309,7 +308,7 @@ pub fn auction_bid() -> () {
     let bidder_purse = runtime::get_named_arg::<URef>(BID_PURSE);
 
     // Adding the bid, doing the purse transfer and resetting the winner if necessary, as well as possibly ending a Dutch auction
-    match (read_named_key_value::<bool>(ENGLISH_FORMAT), read_named_key_value::<Option<Key>>(WINNER), read_named_key_value::<Option<U512>>(PRICE)) {
+    match (read_named_key_value::<bool>(ENGLISH_FORMAT), read_named_key_value::<Option<AccountHash>>(WINNER), read_named_key_value::<Option<U512>>(PRICE)) {
         (true, None, None) => {
             add_bid(bidder, bidder_purse, bid);
             reset_winner(Some(bidder), Some(bid));
@@ -337,17 +336,17 @@ pub fn auction_bid() -> () {
 }
 
 pub fn auction_cancel_bid() -> () {
-    let bidder = get_bidder();
+    let bidder = get_bidder().into_account().unwrap_or_revert_with(ApiError::User(ERROR_INVALID_CALLER));
     let block_time = u64::from(runtime::get_blocktime());
     let cancellation_time = read_named_key_value::<u64>(CANCEL);
 
     if block_time < cancellation_time {
-        let mut bids = read_named_key_value::<BTreeMap<Key, (U512, URef)>>(BIDS);
+        let mut bids = read_named_key_value::<BTreeMap<AccountHash, U512>>(BIDS);
         match bids.get(&bidder) {
-            Some((current_bid, last_purse)) =>
+            Some(current_bid) =>
                 {
                     let auction_purse = read_named_key_uref(AUCTION_PURSE);
-                    system::transfer_from_purse_to_purse(auction_purse, last_purse.clone(), current_bid.clone(), None);
+                    system::transfer_from_purse_to_account(auction_purse, bidder.clone(), current_bid.clone(), None);
                     bids.remove(&bidder);
                     write_named_key_value(BIDS, bids);
                     match find_new_winner() {
@@ -363,17 +362,17 @@ pub fn auction_cancel_bid() -> () {
     }
 }
 
-fn auction_allocate(winner: Option<Key>) -> () {
+fn auction_allocate(winner: Option<AccountHash>) -> () {
     match winner {
-        Some(key) => auction_transfer_token(key),
+        Some(acct) => auction_transfer_token(Key::Account(acct)),
         _ => auction_transfer_token(read_named_key_value::<Key>(OWNER)),
     }
 }
 
-fn auction_transfer(winner: Option<Key>) -> () {
-    fn return_bids(mut bids: BTreeMap<Key, (U512, URef)>, auction_purse: URef) -> () {
-        for (_, (bid, purse)) in &bids {
-            system::transfer_from_purse_to_purse(auction_purse, purse.clone(), bid.clone(), None);
+fn auction_transfer(winner: Option<AccountHash>) -> () {
+    fn return_bids(mut bids: BTreeMap<AccountHash, U512>, auction_purse: URef) -> () {
+        for (bidder, bid) in &bids {
+            system::transfer_from_purse_to_account(auction_purse, bidder.clone(), bid.clone(), None);
         }
         bids.clear();
         write_named_key_value(BIDS, bids);
@@ -382,9 +381,9 @@ fn auction_transfer(winner: Option<Key>) -> () {
         Some(key) => {
             let auction_purse = read_named_key_uref(AUCTION_PURSE);
             let beneficiary_account = read_named_key_value::<Key>(BENEFICIARY_ACCOUNT).into_account().unwrap_or_revert();
-            let mut bids = read_named_key_value::<BTreeMap<Key,(U512, URef)>>(BIDS);
+            let mut bids = read_named_key_value::<BTreeMap<AccountHash, U512>>(BIDS);
             match bids.get(&key) {
-                Some((bid, _)) => {
+                Some(bid) => {
                     system::transfer_from_purse_to_account(auction_purse, beneficiary_account, bid.clone(), None);
                     bids.remove(&key);
                     return_bids(bids, auction_purse);
@@ -395,7 +394,7 @@ fn auction_transfer(winner: Option<Key>) -> () {
         },
         _ => {
             let auction_purse = read_named_key_uref(AUCTION_PURSE);
-            let mut bids = read_named_key_value::<BTreeMap<Key,(U512, URef)>>(BIDS);
+            let mut bids = read_named_key_value::<BTreeMap<AccountHash, U512>>(BIDS);
             return_bids(bids, auction_purse);
         },
     }
@@ -416,7 +415,7 @@ pub fn auction_finalize(time_check: bool) -> () {
     }
 
     // TODO: Figure out how to gracefully finalize if the keys are bad
-    match (finalized, read_named_key_value::<Option<U512>>(PRICE), read_named_key_value::<Option<Key>>(WINNER)) {
+    match (finalized, read_named_key_value::<Option<U512>>(PRICE), read_named_key_value::<Option<AccountHash>>(WINNER)) {
         (false, Some(_), Some(winner)) => {
             auction_allocate(Some(winner));
             auction_transfer(Some(winner));
