@@ -32,7 +32,6 @@ pub extern "C" fn add_auction_purse() {
 pub extern "C" fn call() {
     let mut entry_points = EntryPoints::new();
 
-    // TODO: Change back to Session type and use a call to a getter entry point to obtain auction purse URef (maybe?)
     entry_points.add_entry_point(EntryPoint::new(
         String::from(BID_FUNC),
         vec![

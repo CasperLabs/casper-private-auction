@@ -2,11 +2,9 @@
 
 . client_put_deploy_config.sh
 
-NFT_WASM=~/CasperLabs/casper-nft-cep47/target/wasm32-unknown-unknown/release/dragons-nft.wasm
-
 NFT_INSTALL_DEPLOY=$(casper-client put-deploy\
 	--chain-name $NETWORK_NAME\
-	--node-address http://localhost:$NODE_1_RPC_PORT\
+	--node-address $NODE_1_ADDRESS\
 	--secret-key $USER_1_SECRET_KEY\
 	--payment-amount $GAS_LIMIT\
 	--session-path $NFT_WASM\

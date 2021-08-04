@@ -6,10 +6,11 @@ use casper_contract::{unwrap_or_revert::UnwrapOrRevert, contract_api::{runtime, 
 use alloc::string::{String, ToString};
 use alloc::collections::BTreeMap;
 use casper_types::bytesrepr::ToBytes;
+use casper_types::account::AccountHash;
 
 // TODO: Either separate arg name and named key consistently, or not at all
 const OWNER: &str = "token_owner";
-const SELLER_PURSE: &str = "seller_purse";
+const BENEFICIARY_ACCOUNT: &str = "beneficiary_account";
 pub const AUCTION_PURSE: &str = "auction_purse";
 const NFT_HASH_ARG: &str = "token_contract_hash";
 const NFT_HASH: &str = NFT_HASH_ARG;
@@ -44,12 +45,14 @@ const ERROR_LATE_CANCELLATION: u16 = 7;
 const ERROR_UNKNOWN_FORMAT: u16 = 8;
 const ERROR_INVALID_TIMES: u16 = 9;
 const ERROR_INVALID_PRICES: u16 = 10;
+const ERROR_EARLY_BID: u16 = 11;
+const ERROR_INVALID_BENEFICIARY: u16 = 12;
 pub const BID: &str = "bid";
 pub const BID_PURSE: &str = "bid_purse";
 pub const BID_FUNC: &str = BID;
 pub const CANCEL_FUNC: &str = "cancel_bid";
 pub const FINALIZE_FUNC: &str = "finalize";
-pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_hash";
+pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_package_hash";
 pub const AUCTION_ACCESS_TOKEN: &str = "auction_access_token";
 
 macro_rules! named_keys {
@@ -88,6 +91,7 @@ fn write_named_key_value<T: CLTyped + ToBytes>(name: &str, value: T) -> () {
     storage::write(uref, value);
 }
 
+// TODO: This whole thing should use enums
 fn english_format_match() -> bool {
     match &runtime::get_named_arg::<String>(FORMAT_ARG)[..] {
         ENGLISH_MATCH => true,
@@ -108,14 +112,14 @@ pub fn create_auction_named_keys() -> NamedKeys {
     // Get the owner
     let token_owner = Key::Account(runtime::get_caller());
     // Get the beneficiary purse
-    let seller_purse = runtime::get_named_arg::<URef>(SELLER_PURSE);
-
-    // Set up the purse
-    //let auction_purse = system::create_purse();
+    let beneficiary_account =
+        match runtime::get_named_arg::<Key>(BENEFICIARY_ACCOUNT) {
+            key @ Key::Account(_) => key,
+            _ => runtime::revert(ApiError::User(ERROR_INVALID_BENEFICIARY)),
+        };
 
     // Get the auction parameters from the command line args
-    // TODO: This is broken, because there is no CLValue corresponding to a ContractHash! Note that that token transfers work because call_contract *does* expect a ContractHash
-    let token_contract_hash = ContractHash::new(runtime::get_named_arg::<Key>(NFT_HASH_ARG).into_hash().unwrap_or_revert());
+    let token_contract_hash: Key = Key::Hash(runtime::get_named_arg::<Key>(NFT_HASH_ARG).into_hash().unwrap_or_revert());
     let english_format = english_format_match();
     // Consider optimizing away the storage of start price key for English auctions
     let (start_price, reserve_price) = match (english_format, runtime::get_named_arg::<Option<U512>>(START_PRICE_ARG), runtime::get_named_arg::<U512>(RESERVE_ARG)) {
@@ -133,7 +137,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
 
     return named_keys!(
         (OWNER, token_owner),
-        (SELLER_PURSE, seller_purse),
+        (BENEFICIARY_ACCOUNT, beneficiary_account),
 
         //(AUCTION_PURSE, auction_purse),
 
@@ -194,7 +198,6 @@ fn auction_transfer_token(recipient: Key) -> () {
     )
 }
 
-// TODO: This probably needs to just always get the next to last one, if bid entry point is now Contract type
 fn get_bidder() -> Key {
     // Figure out who is trying to bid and what their bid is
     let mut call_stack = runtime::get_call_stack();
@@ -203,6 +206,7 @@ fn get_bidder() -> Key {
     //if session { () } else { call_stack.pop(); () };
 
     let caller: CallStackElement = call_stack.last().unwrap_or_revert().clone();
+    // TODO: Contracts should probably be disallowed, since they can't be verified by Civic in a meaningful way
     let bidder = match caller {
         CallStackElement::Session { account_hash: account_hash_caller} => Key::Account(account_hash_caller),
         CallStackElement::StoredContract { contract_package_hash: _, contract_hash: contract_hash_addr_caller} => Key::Hash(contract_hash_addr_caller.value()),
@@ -230,28 +234,31 @@ fn find_new_winner() -> Option<(Key, U512)> {
     }
 }
 
-// TODO: EXTREMELY CRUDE
 fn get_current_price() -> U512 {
     let block_time = u64::from(runtime::get_blocktime());
-    // TODO: start_price is actually an Option<U512>
-    let start_price = read_named_key_value::<U512>(START_PRICE);
+    let start_price = match read_named_key_value::<Option<U512>>(START_PRICE) {
+        Some(p) => p,
+        None => runtime::revert(ApiError::User(ERROR_BAD_STATE)),
+    };
     let end_price = read_named_key_value::<U512>(RESERVE);
     let start_time = read_named_key_value::<u64>(START);
     let end_time = read_named_key_value::<u64>(END);
 
     let duration = end_time - start_time;
     let time_diff = block_time - start_time;
+
     if time_diff == 0u64 {
         return start_price;
     } else {
-        let time_ratio = U512::from(duration/time_diff);
-        let price_range = end_price - start_price;
-        let price_delta = price_range/time_ratio;
+        let time_ratio = duration/time_diff;
+        let price_range = start_price - end_price;
+        let price_delta = price_range/U512::from(time_ratio);
         return start_price - price_delta;
-    }
+    };
+
 }
 
-// TODO: Consider removing the bid_purse argument
+// TODO: Consider removing storage of bid purses and refunding to accounts directly
 pub fn auction_bid() -> () {
     fn add_bid(bidder: Key, bidder_purse: URef, bid: U512) -> () {
         // Get the existing bid, if any
@@ -278,10 +285,19 @@ pub fn auction_bid() -> () {
 
     // Check that it's not too late and that the auction isn't finalized
     let finalized = read_named_key_value::<bool>(FINALIZED);
+    let start_time = read_named_key_value::<u64>(START);
     let end_time = read_named_key_value::<u64>(END);
     let block_time = u64::from(runtime::get_blocktime());
-    if finalized || (block_time >= end_time) {
-        runtime::revert(ApiError::User(ERROR_LATE_BID));
+
+    match (finalized, block_time <= end_time, block_time >= start_time) {
+        // Auction ongoing
+        (false, true, true) => (),
+        // Auction ended or is finalized
+        (false, false, true) | (true, _, _) => runtime::revert(ApiError::User(ERROR_LATE_BID)),
+        // Auction didn't start yet
+        (false, true, false) => runtime::revert(ApiError::User(ERROR_EARLY_BID)),
+        // Should not be in a state where current time is both before start and after the end
+        (_, false, false) => runtime::revert(ApiError::User(ERROR_BAD_STATE))
     }
 
     // Figure out who is trying to bid and what their bid is
@@ -307,6 +323,7 @@ pub fn auction_bid() -> () {
             },
         (false, None, None) =>
             if bid >= get_current_price() {
+                // TODO: Add the current price, not the bid, in the Dutch auction
                 add_bid(bidder, bidder_purse, bid);
                 reset_winner(Some(bidder), Some(bid));
                 auction_finalize(false);
@@ -364,11 +381,11 @@ fn auction_transfer(winner: Option<Key>) -> () {
     match winner {
         Some(key) => {
             let auction_purse = read_named_key_uref(AUCTION_PURSE);
-            let seller_purse = read_named_key_value::<URef>(SELLER_PURSE);
+            let beneficiary_account = read_named_key_value::<Key>(BENEFICIARY_ACCOUNT).into_account().unwrap_or_revert();
             let mut bids = read_named_key_value::<BTreeMap<Key,(U512, URef)>>(BIDS);
             match bids.get(&key) {
                 Some((bid, _)) => {
-                    system::transfer_from_purse_to_purse(auction_purse, seller_purse, bid.clone(), None);
+                    system::transfer_from_purse_to_account(auction_purse, beneficiary_account, bid.clone(), None);
                     bids.remove(&key);
                     return_bids(bids, auction_purse);
                 },
@@ -394,20 +411,17 @@ pub fn auction_finalize(time_check: bool) -> () {
     // We're not finalized, so let's get all the other arguments, as well as time to make sure we're not too early
     let end_time = read_named_key_value::<u64>(END);
     let block_time = u64::from(runtime::get_blocktime());
-    if time_check {
-        if block_time < end_time {
+    if time_check && block_time < end_time {
             runtime::revert(ApiError::User(ERROR_EARLY))
-        }
     }
 
-    // TODO: DO NOT FORGET ERROR HANDLING FOR BAD KEYS
+    // TODO: Figure out how to gracefully finalize if the keys are bad
     match (finalized, read_named_key_value::<Option<U512>>(PRICE), read_named_key_value::<Option<Key>>(WINNER)) {
         (false, Some(_), Some(winner)) => {
             auction_allocate(Some(winner));
             auction_transfer(Some(winner));
             write_named_key_value(FINALIZED, true);
         },
-        (false, None, None) => (),
         _ => {
             auction_allocate(None);
             auction_transfer(None);
