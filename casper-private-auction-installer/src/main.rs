@@ -70,7 +70,7 @@ pub extern "C" fn call() {
 
     let auction_named_keys = create_auction_named_keys();
 
-    // TODO: Verify whether this is a contract or a package hash
+    // TODO: Store the contract hash, not just the package hash
     let (auction_hash, _) = storage::new_locked_contract(
         entry_points,
         Some(auction_named_keys),

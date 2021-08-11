@@ -100,7 +100,7 @@ fn english_format_match() -> bool {
     }
 }
 
-// TODO: Throwing a custom error may have removed the need to check that blocktime (provided in milliseconds) is less than start time (Unix era time is customarily in seconds)
+// TODO: Rewrite to avoid the match guard
 fn auction_times_match() -> (u64, u64, u64) {
     match (runtime::get_named_arg(START_ARG), runtime::get_named_arg(CANCEL_ARG), runtime::get_named_arg(END_ARG)) {
         (start, cancel, end) if u64::from(runtime::get_blocktime()) <= start && start <= cancel && cancel <= end => (start, cancel, end),
@@ -138,9 +138,6 @@ pub fn create_auction_named_keys() -> NamedKeys {
     return named_keys!(
         (OWNER, token_owner),
         (BENEFICIARY_ACCOUNT, beneficiary_account),
-
-        //(AUCTION_PURSE, auction_purse),
-
         (NFT_HASH, token_contract_hash),
         (ENGLISH_FORMAT, english_format),
         (TOKEN_ID, token_id),
@@ -159,7 +156,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
 pub fn auction_receive_token(auction_key: Key) -> () {
     let token_owner = Key::Account(runtime::get_caller());
     let token_contract_hash = ContractHash::new(runtime::get_named_arg::<Key>(NFT_HASH_ARG).into_hash().unwrap_or_revert());
-    let token_id_str = runtime::get_named_arg::<String>(TOKEN_ID_ARG).to_string();
+    let token_id_str = runtime::get_named_arg::<String>(TOKEN_ID_ARG);
 
     runtime::call_contract(
         token_contract_hash,
@@ -217,10 +214,8 @@ fn get_bidder() -> Key {
 }
 
 fn reset_winner(winner: Option<AccountHash>, bid: Option<U512>) -> () {
-    let winner_uref = read_named_key_uref(WINNER);
-    let winning_bid_uref = read_named_key_uref(PRICE);
-    storage::write(winner_uref, winner);
-    storage::write(winning_bid_uref, bid);
+    write_named_key_value(WINNER, winner);
+    write_named_key_value(PRICE, bid);
 }
 
 fn find_new_winner() -> Option<(AccountHash, U512)> {
@@ -268,7 +263,7 @@ pub fn auction_bid() -> () {
                     runtime::revert(ApiError::User(ERROR_BID_TOO_LOW))
                 } else {
                     let auction_purse = read_named_key_uref(AUCTION_PURSE);
-                    system::transfer_from_purse_to_purse(bidder_purse, auction_purse, &bid - current_bid, None);
+                    system::transfer_from_purse_to_purse(bidder_purse, auction_purse, bid - current_bid, None);
                     bids.insert(bidder, bid);
                     write_named_key_value(BIDS, bids);
                 },
