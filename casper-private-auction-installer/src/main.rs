@@ -2,10 +2,15 @@
 #![no_main]
 
 extern crate alloc;
-use casper_types::{EntryPoints, runtime_args, RuntimeArgs, EntryPoint, Parameter, CLType, EntryPointAccess, EntryPointType, Key};
-use casper_contract::{contract_api::{system, runtime, storage}};
-use alloc::{vec, string::String};
-use casper_private_auction_core::{AUCTION_PURSE, BID, BID_PURSE, BID_FUNC, CANCEL_FUNC, FINALIZE_FUNC, AUCTION_ACCESS_TOKEN, auction_bid, auction_cancel_bid, auction_finalize, create_auction_named_keys, auction_receive_token, AUCTION_CONTRACT_HASH};
+use alloc::{string::String, vec};
+use casper_contract::{contract_api::{runtime::{self, get_blocktime}, storage, system}, unwrap_or_revert::UnwrapOrRevert};
+use casper_private_auction_core::{
+    auction_bid, auction_cancel_bid, auction_finalize, data, ContractHash,
+};
+use casper_types::{
+    runtime_args, CLType, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Key,
+    Parameter, RuntimeArgs,
+};
 
 #[no_mangle]
 pub extern "C" fn bid() {
@@ -25,18 +30,31 @@ pub extern "C" fn finalize() {
 #[no_mangle]
 pub extern "C" fn add_auction_purse() {
     let purse = system::create_purse();
-    runtime::put_key(AUCTION_PURSE, purse.into());
+    runtime::put_key(data::AUCTION_PURSE, purse.into());
+    let blocktime :u64 = get_blocktime().into();
+    runtime::put_key(
+        "blocktime",
+        storage::new_uref(blocktime).into(),
+    );
 }
 
 #[no_mangle]
-pub extern "C" fn call() {
+pub extern "C" fn update_blocktime() {
+    let blocktime :u64 = get_blocktime().into();
+    runtime::put_key(
+        "blocktime",
+        storage::new_uref(blocktime).into(),
+    );
+}
+
+pub fn get_entry_points() -> EntryPoints {
     let mut entry_points = EntryPoints::new();
 
     entry_points.add_entry_point(EntryPoint::new(
-        String::from(BID_FUNC),
+        data::BID,
         vec![
-            Parameter::new(BID, CLType::U512),
-            Parameter::new(BID_PURSE, CLType::URef)
+            Parameter::new(data::BID, CLType::U512),
+            Parameter::new(data::BID_PURSE, CLType::URef),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -44,7 +62,7 @@ pub extern "C" fn call() {
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
-        String::from(CANCEL_FUNC),
+        data::CANCEL_FUNC,
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -52,7 +70,7 @@ pub extern "C" fn call() {
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
-        String::from(FINALIZE_FUNC),
+        data::FINALIZE_FUNC,
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -61,30 +79,60 @@ pub extern "C" fn call() {
 
     // TODO: This needs to be one-time use only
     entry_points.add_entry_point(EntryPoint::new(
-        String::from("add_auction_purse"),
+        "add_auction_purse",
+        vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+    entry_points.add_entry_point(EntryPoint::new(
+        "update_blocktime",
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));
 
-    let auction_named_keys = create_auction_named_keys();
+    entry_points
+}
+
+#[no_mangle]
+pub extern "C" fn call() {
+    let entry_points = get_entry_points();
+    let auction_named_keys = data::create_auction_named_keys();
 
     // TODO: Store the contract hash, not just the package hash
     let (auction_hash, _) = storage::new_locked_contract(
         entry_points,
         Some(auction_named_keys),
-        Some(String::from(AUCTION_CONTRACT_HASH)),
-        Some(String::from(AUCTION_ACCESS_TOKEN)),
+        Some(String::from(data::AUCTION_CONTRACT_HASH)),
+        Some(String::from(data::AUCTION_ACCESS_TOKEN)),
     );
-
+    runtime::put_key("auction_contract_hash", auction_hash.into());
+    // Test-env wrapper
+    runtime::put_key(
+        "auction_contract_hash_wrapped",
+        storage::new_uref(auction_hash).into(),
+    );
     // Create purse in the contract's context
-    runtime::call_contract::<()>(
-        auction_hash,
-        "add_auction_purse",
-        runtime_args! {}
-    );
+    runtime::call_contract::<()>(auction_hash, "add_auction_purse", runtime_args! {});
+    let auction_key = Key::Hash(auction_hash.value());
 
-    let auction_hash_as_key = Key::Hash(auction_hash.value());
-    auction_receive_token(auction_hash_as_key);
+    let token_owner = Key::Account(runtime::get_caller());
+    let token_contract_hash = ContractHash::new(
+        runtime::get_named_arg::<Key>(data::NFT_HASH)
+            .into_hash()
+            .unwrap_or_revert(),
+    );
+    let token_id_str = runtime::get_named_arg::<String>(data::TOKEN_ID);
+    // revert(ApiError::User(666));
+    runtime::call_contract(
+        token_contract_hash,
+        "transfer_token",
+        runtime_args! {
+          "sender" => token_owner,
+          "recipient" => auction_key,
+          "token_id" => token_id_str,
+        },
+    )
 }
