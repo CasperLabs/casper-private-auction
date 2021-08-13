@@ -1,6 +1,10 @@
 #!/bin/bash
 
-. client_put_deploy_config.sh
+CWD=$(pwd)
+parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+cd "$parent_path"
+. ../misc/client_put_deploy_config.sh
+cd $CWD
 
 SELLER_ACCOUNT_ARG=$1
 TOKEN_CONTRACT_HASH_ARG=$2

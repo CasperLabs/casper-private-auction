@@ -1,15 +1,8 @@
 #!/bin/bash
 
-# WHAT DOES THIS DO?
-# - sets up critical local variables for casper-client calls
-# - retrieves user 1 (seller) key and main purse
-# - deploys a toy NFT contract, mints a token and obtains both contract hash and token id
-
-# ASSUMPTIONS:
-# - running NCTL network
-# - user 1 with sufficient tokens (normally the case!)
-
-. client_put_deploy_config.sh
+parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+cd "$parent_path"
+. misc/client_put_deploy_config.sh
 
 SELLER_KEY=$(nctl-view-user-account user=1\
   | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
@@ -32,11 +25,10 @@ BUYER_4_PURSE=$(nctl-view-user-account user=4\
 BUYER_5_PURSE=$(nctl-view-user-account user=5\
   | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
 
-. deploy_nft.sh
+. actions/deploy_nft.sh
 
 sleep 90
 
-# This needs to be changed to use jq
 TOKEN_CONTRACT_HASH=$(nctl-view-user-account user=1\
   | grep -Pom1 "(?<=key\": \")hash-[0-9|a-z]{64}")
 

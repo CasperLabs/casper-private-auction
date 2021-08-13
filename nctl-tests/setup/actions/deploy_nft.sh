@@ -1,6 +1,10 @@
 #!/bin/bash
 
-. client_put_deploy_config.sh
+CWD=$(pwd)
+parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+cd "$parent_path"
+. ../misc/client_put_deploy_config.sh
+cd $CWD
 
 NFT_INSTALL_DEPLOY=$(casper-client put-deploy\
 	--chain-name $NETWORK_NAME\
