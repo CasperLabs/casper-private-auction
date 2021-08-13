@@ -5,7 +5,8 @@ members = [
     "casper-private-auction-core",
     "casper-private-auction-dutch",
     "casper-private-auction-english",
-    "casper-private-auction-installer"
+    "casper-private-auction-installer",
+    "tests"
 ]
 
 [profile.release]
