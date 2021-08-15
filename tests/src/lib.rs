@@ -36,11 +36,8 @@ fn english_auction_test() {
     } = cep47;
     let mut auction_contract = auction::AuctionContract::deploy(context, hash, &token_id, true);
     println!("auction deployed");
-    println!("blocktime {}",auction_contract.get_blocktime());
-    println!("now {}",auction::get_now_u64());
-    println!("end {}",auction_contract.get_end());
-    auction_contract.update_blocktime();
-    println!("blocktime {}",auction_contract.get_blocktime());
+    println!("now {}", auction::get_now_u64());
+    println!("end {}", auction_contract.get_end());
     auction_contract.finalize();
     println!("auction finalized");
     assert!(auction_contract.is_finalized());

@@ -17,9 +17,9 @@ use casper_types::{
   --session-arg "cancellation_time      :   u64         ='$CANCEL_TIME'"\
   --session-arg "end_time               :   u64         ='$END_TIME'"\
 */
-pub fn get_now_u64()->u64{
+pub fn get_now_u64() -> u64 {
     use std::time::SystemTime;
-     match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
         Ok(n) => n.as_millis() as u64,
         Err(_) => panic!("SystemTime before UNIX EPOCH!"),
     }
@@ -32,7 +32,7 @@ fn deploy_args(
     english: bool,
 ) -> RuntimeArgs {
     let now = get_now_u64();
-    
+
     runtime_args! {
         "beneficiary_account"=>Key::Account(*beneficiary),
         "token_contract_hash"=>Key::Hash(*nft),
@@ -77,39 +77,42 @@ impl AuctionContract {
             deployer,
         }
     }
-/*
-    entry_points.add_entry_point(EntryPoint::new(
-        data::BID,
-        vec![
-            Parameter::new(data::BID, CLType::U512),
-            Parameter::new(data::BID_PURSE, CLType::URef),
-        ],
-        CLType::Unit,
-        EntryPointAccess::Public,
-        EntryPointType::Contract,
-    ));
+    /*
+       entry_points.add_entry_point(EntryPoint::new(
+           data::BID,
+           vec![
+               Parameter::new(data::BID, CLType::U512),
+               Parameter::new(data::BID_PURSE, CLType::URef),
+           ],
+           CLType::Unit,
+           EntryPointAccess::Public,
+           EntryPointType::Contract,
+       ));
 
-    entry_points.add_entry_point(EntryPoint::new(
-        data::CANCEL_FUNC,
-        vec![],
-        CLType::Unit,
-        EntryPointAccess::Public,
-        EntryPointType::Contract,
-    ));
+       entry_points.add_entry_point(EntryPoint::new(
+           data::CANCEL_FUNC,
+           vec![],
+           CLType::Unit,
+           EntryPointAccess::Public,
+           EntryPointType::Contract,
+       ));
 
-    entry_points.add_entry_point(EntryPoint::new(
-        data::FINALIZE_FUNC,
-        vec![],
-        CLType::Unit,
-        EntryPointAccess::Public,
-        EntryPointType::Contract,
-    ));
- */
+       entry_points.add_entry_point(EntryPoint::new(
+           data::FINALIZE_FUNC,
+           vec![],
+           CLType::Unit,
+           EntryPointAccess::Public,
+           EntryPointType::Contract,
+       ));
+    */
     pub fn bid(&mut self, bid: U512) {
-        self.call("bid", runtime_args! {
-            //"bid" => bid,
-            //"bid_purse" => URef  
-        })
+        self.call(
+            "bid",
+            runtime_args! {
+                //"bid" => bid,
+                //"bid_purse" => URef
+            },
+        )
     }
 
     pub fn cancel(&mut self) {
@@ -120,21 +123,12 @@ impl AuctionContract {
         self.call("finalize", runtime_args! {})
     }
 
-    pub fn update_blocktime(&mut self) {
-        self.call("update_blocktime", runtime_args! {})
-    }
-
-
-    pub fn is_finalized(&self) -> bool{
+    pub fn is_finalized(&self) -> bool {
         self.query_contract("finalized").unwrap()
     }
 
-    pub fn get_end(&self) -> u64{
+    pub fn get_end(&self) -> u64 {
         self.query_contract("end_time").unwrap()
-    }
-
-    pub fn get_blocktime(&self) -> u64{
-        self.query_contract("blocktime").unwrap()
     }
 
     /// Wrapper function for calling an entrypoint on the contract with the access rights of the deployer.
