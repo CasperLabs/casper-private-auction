@@ -33,8 +33,10 @@ pub extern "C" fn finalize() {
 
 #[no_mangle]
 pub extern "C" fn add_auction_purse() {
-    let purse = system::create_purse();
-    runtime::put_key(data::AUCTION_PURSE, purse.into());
+    if runtime::get_key(data::AUCTION_PURSE).is_none() {
+        let purse = system::create_purse();
+        runtime::put_key(data::AUCTION_PURSE, purse.into());
+    }
 }
 
 pub fn get_entry_points() -> EntryPoints {
@@ -67,7 +69,6 @@ pub fn get_entry_points() -> EntryPoints {
         EntryPointType::Contract,
     ));
 
-    // TODO: This needs to be one-time use only
     entry_points.add_entry_point(EntryPoint::new(
         "add_auction_purse",
         vec![],
@@ -83,39 +84,32 @@ pub fn get_entry_points() -> EntryPoints {
 pub extern "C" fn call() {
     let entry_points = get_entry_points();
     let auction_named_keys = data::create_auction_named_keys();
-
-    // TODO: Store the contract hash, not just the package hash
     let (auction_hash, _) = storage::new_locked_contract(
         entry_points,
         Some(auction_named_keys),
         Some(String::from(data::AUCTION_CONTRACT_HASH)),
         Some(String::from(data::AUCTION_ACCESS_TOKEN)),
     );
-    runtime::put_key("auction_contract_hash", auction_hash.into());
-    // Test-env wrapper
-    runtime::put_key(
-        "auction_contract_hash_wrapped",
-        storage::new_uref(auction_hash).into(),
-    );
+    let auction_key = Key::Hash(auction_hash.value());
+    runtime::put_key("auction_contract_hash", auction_key);
+
     // Create purse in the contract's context
     runtime::call_contract::<()>(auction_hash, "add_auction_purse", runtime_args! {});
-    let auction_key = Key::Hash(auction_hash.value());
 
-    let token_owner = Key::Account(runtime::get_caller());
+    // Hash of the NFT contract put up for auction
     let token_contract_hash = ContractHash::new(
         runtime::get_named_arg::<Key>(data::NFT_HASH)
             .into_hash()
             .unwrap_or_revert(),
     );
-    let token_id_str = runtime::get_named_arg::<String>(data::TOKEN_ID);
-    // revert(ApiError::User(666));
+    // Transfer the NFT ownership to the auction
     runtime::call_contract(
         token_contract_hash,
         "transfer_token",
         runtime_args! {
-          "sender" => token_owner,
+          "sender" => Key::Account(runtime::get_caller()),
           "recipient" => auction_key,
-          "token_id" => token_id_str,
+          "token_id" => runtime::get_named_arg::<String>(data::TOKEN_ID),
         },
     )
 }

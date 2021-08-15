@@ -85,7 +85,7 @@ impl AuctionData {
         read_named_key_value::<String>(TOKEN_ID)
     }
 
-    pub fn reset_winner(winner: Option<AccountHash>, bid: Option<U512>) {
+    pub fn set_winner(winner: Option<AccountHash>, bid: Option<U512>) {
         write_named_key_value(WINNER, winner);
         write_named_key_value(PRICE, bid);
     }
@@ -113,8 +113,6 @@ impl AuctionData {
     pub fn get_winner() -> Option<AccountHash> {
         read_named_key_value::<Option<AccountHash>>(WINNER)
     }
-
-    // pub fn get_price
 
     pub fn get_current_price() -> U512 {
         let block_time = u64::from(runtime::get_blocktime());
