@@ -3,48 +3,38 @@
 
 extern crate alloc;
 use alloc::{string::String, vec};
-use casper_contract::{contract_api::{runtime::{self, get_blocktime}, storage, system}, unwrap_or_revert::UnwrapOrRevert};
-use casper_private_auction_core::{
-    auction_bid, auction_cancel_bid, auction_finalize, data, ContractHash,
+use casper_contract::{
+    contract_api::{
+        runtime::{self},
+        storage, system,
+    },
+    unwrap_or_revert::UnwrapOrRevert,
 };
+use casper_private_auction_core::{auction::Auction, data, AuctionLogic};
 use casper_types::{
-    runtime_args, CLType, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Key,
-    Parameter, RuntimeArgs,
+    runtime_args, CLType, ContractHash, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints,
+    Key, Parameter, RuntimeArgs,
 };
 
 #[no_mangle]
 pub extern "C" fn bid() {
-    auction_bid();
+    Auction::auction_bid();
 }
 
 #[no_mangle]
 pub extern "C" fn cancel_bid() {
-    auction_cancel_bid();
+    Auction::auction_cancel_bid();
 }
 
 #[no_mangle]
 pub extern "C" fn finalize() {
-    auction_finalize(true);
+    Auction::auction_finalize(true);
 }
 
 #[no_mangle]
 pub extern "C" fn add_auction_purse() {
     let purse = system::create_purse();
     runtime::put_key(data::AUCTION_PURSE, purse.into());
-    let blocktime :u64 = get_blocktime().into();
-    runtime::put_key(
-        "blocktime",
-        storage::new_uref(blocktime).into(),
-    );
-}
-
-#[no_mangle]
-pub extern "C" fn update_blocktime() {
-    let blocktime :u64 = get_blocktime().into();
-    runtime::put_key(
-        "blocktime",
-        storage::new_uref(blocktime).into(),
-    );
 }
 
 pub fn get_entry_points() -> EntryPoints {
@@ -80,13 +70,6 @@ pub fn get_entry_points() -> EntryPoints {
     // TODO: This needs to be one-time use only
     entry_points.add_entry_point(EntryPoint::new(
         "add_auction_purse",
-        vec![],
-        CLType::Unit,
-        EntryPointAccess::Public,
-        EntryPointType::Contract,
-    ));
-    entry_points.add_entry_point(EntryPoint::new(
-        "update_blocktime",
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
