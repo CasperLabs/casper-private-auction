@@ -1,7 +1,7 @@
 use casper_contract::{
     contract_api::{
         runtime::{self, revert},
-        storage,
+        storage::{self, new_dictionary},
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
@@ -11,7 +11,10 @@ use casper_types::{
 };
 
 use crate::error::AuctionError;
-use alloc::{collections::BTreeMap, string::String};
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+};
 use casper_types::{account::AccountHash, contracts::NamedKeys, Key, U512};
 
 // TODO: Either separate arg name and named key consistently, or not at all
@@ -238,7 +241,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let bids: BTreeMap<AccountHash, U512> = BTreeMap::new();
     let finalized = false;
 
-    return named_keys!(
+    let mut named_keys = named_keys!(
         (OWNER, token_owner),
         (BENEFICIARY_ACCOUNT, beneficiary_account),
         (NFT_HASH, token_contract_hash),
@@ -254,4 +257,14 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (BIDS, bids),
         (FINALIZED, finalized)
     );
+
+    add_empty_dict(&mut named_keys, "events");
+
+    named_keys
+}
+
+fn add_empty_dict(named_keys: &mut NamedKeys, name: &str) {
+    let dict = new_dictionary(name).unwrap_or_revert();
+    runtime::remove_key(name);
+    named_keys.insert(name.to_string(), dict.into());
 }
