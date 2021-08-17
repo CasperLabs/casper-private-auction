@@ -10,8 +10,11 @@ pub use casper_types::{
     CLTyped, ContractHash, Key, RuntimeArgs, URef, U512,
 };
 
-use crate::data::AuctionData;
 use crate::error::AuctionError;
+use crate::{
+    data::AuctionData,
+    events::{emit, AuctionEvent},
+};
 
 pub struct Auction;
 
@@ -155,6 +158,7 @@ impl crate::AuctionLogic for Auction {
                 }
             }
         }
+        emit(&AuctionEvent::Bid { bidder, bid })
     }
 
     fn auction_cancel_bid() {
@@ -183,6 +187,7 @@ impl crate::AuctionLogic for Auction {
         } else {
             runtime::revert(AuctionError::LateCancellation)
         }
+        emit(&AuctionEvent::BidCancelled { bidder })
     }
 
     fn auction_finalize(time_check: bool) {
@@ -197,17 +202,20 @@ impl crate::AuctionLogic for Auction {
         }
 
         // TODO: Figure out how to gracefully finalize if the keys are bad
-        match (AuctionData::get_price(), AuctionData::get_winner()) {
-            (Some(_), Some(winner)) => {
+        let winner = match (AuctionData::get_price(), AuctionData::get_winner()) {
+            (Some(winning_bid), Some(winner)) => {
                 Self::auction_allocate(Some(winner));
                 Self::auction_transfer(Some(winner));
-                AuctionData::set_finalized()
+                AuctionData::set_finalized();
+                Some((winner, winning_bid))
             }
             _ => {
                 Self::auction_allocate(None);
                 Self::auction_transfer(None);
-                AuctionData::set_finalized()
+                AuctionData::set_finalized();
+                None
             }
-        }
+        };
+        emit(&AuctionEvent::Finalized { winner })
     }
 }

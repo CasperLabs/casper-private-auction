@@ -14,6 +14,7 @@ pub enum AuctionError {
     InvalidPrices = 10,
     EarlyBid = 11,
     InvalidBeneficiary = 12,
+    BadKey = 13,
 }
 
 impl From<AuctionError> for ApiError {
