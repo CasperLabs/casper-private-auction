@@ -17,7 +17,6 @@ pub mod nft;
 #[test]
 fn english_auction_test() {
     let mut cep47 = nft::CasperCEP47Contract::deploy();
-    println!("nft deployed");
     let token_id = String::from("custom_token_id");
     let token_meta = nft::meta::red_dragon();
     cep47.mint_one(
@@ -26,7 +25,6 @@ fn english_auction_test() {
         &token_meta,
         &(cep47.admin.clone()),
     );
-    println!("nft minted");
     let nft::CasperCEP47Contract {
         mut context,
         hash,
@@ -35,10 +33,7 @@ fn english_auction_test() {
         bob,
     } = cep47;
     let mut auction_contract = auction::AuctionContract::deploy(context, hash, &token_id, true);
-    println!("auction deployed");
-    println!("now {}", auction::get_now_u64());
-    println!("end {}", auction_contract.get_end());
+    std::thread::sleep(Duration::from_millis(3500));
     auction_contract.finalize();
-    println!("auction finalized");
     assert!(auction_contract.is_finalized());
 }

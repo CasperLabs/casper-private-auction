@@ -1,3 +1,4 @@
+use crate::data::{EVENTS, EVENTS_COUNT};
 use crate::error::AuctionError;
 use alloc::collections::BTreeMap;
 use alloc::format;
@@ -53,20 +54,20 @@ pub fn emit(event: &AuctionEvent) {
     };
     events_count += 1;
 
-    let events_dict = crate::Dict::at("events");
+    let events_dict = crate::Dict::at(EVENTS);
     events_dict.set(&event_id, emit_event);
     set_events_count(events_count);
 }
 
 pub fn get_events_count() -> u32 {
-    if let Some(Key::URef(uref)) = runtime::get_key("events_count") {
+    if let Some(Key::URef(uref)) = runtime::get_key(EVENTS_COUNT) {
         return storage::read(uref).unwrap_or_revert().unwrap_or_revert();
     }
     revert(AuctionError::BadKey)
 }
 
 pub fn set_events_count(events_count: u32) {
-    match runtime::get_key("events_count") {
+    match runtime::get_key(EVENTS_COUNT) {
         Some(key) => {
             if let Key::URef(uref) = key {
                 storage::write(uref, events_count);
@@ -74,7 +75,7 @@ pub fn set_events_count(events_count: u32) {
         }
         None => {
             let key = storage::new_uref(events_count).into();
-            runtime::put_key("events_count", key);
+            runtime::put_key(EVENTS_COUNT, key);
         }
     }
 }

@@ -92,7 +92,10 @@ pub extern "C" fn call() {
     );
     let auction_key = Key::Hash(auction_hash.value());
     runtime::put_key("auction_contract_hash", auction_key);
-
+    runtime::put_key(
+        "auction_contract_hash_wrapped",
+        storage::new_uref(auction_hash).into(),
+    );
     // Create purse in the contract's context
     runtime::call_contract::<()>(auction_hash, "add_auction_purse", runtime_args! {});
 
@@ -103,12 +106,13 @@ pub extern "C" fn call() {
             .unwrap_or_revert(),
     );
     // Transfer the NFT ownership to the auction
+
     runtime::call_contract(
         token_contract_hash,
         "transfer_token",
         runtime_args! {
           "sender" => Key::Account(runtime::get_caller()),
-          "recipient" => auction_key,
+          "recipient" => runtime::get_key(data::AUCTION_CONTRACT_HASH).unwrap_or_revert(),
           "token_id" => runtime::get_named_arg::<String>(data::TOKEN_ID),
         },
     )

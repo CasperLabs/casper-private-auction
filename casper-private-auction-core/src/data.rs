@@ -39,6 +39,8 @@ pub const CANCEL_FUNC: &str = "cancel_bid";
 pub const FINALIZE_FUNC: &str = "finalize";
 pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_package_hash";
 pub const AUCTION_ACCESS_TOKEN: &str = "auction_access_token";
+pub const EVENTS: &str = "auction_events";
+pub const EVENTS_COUNT: &str = "auction_events_count";
 
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
@@ -75,7 +77,7 @@ pub struct AuctionData;
 
 impl AuctionData {
     pub fn get_token_owner() -> Key {
-        read_named_key_value::<Key>("token_owner")
+        read_named_key_value::<Key>(OWNER)
     }
     pub fn get_nft_hash() -> ContractHash {
         ContractHash::new(
@@ -187,18 +189,13 @@ impl AuctionData {
 
 // TODO: Rewrite to avoid the match guard
 fn auction_times_match() -> (u64, u64, u64) {
-    match (
-        runtime::get_named_arg(START),
-        runtime::get_named_arg(CANCEL),
-        runtime::get_named_arg(END),
-    ) {
-        (start, cancel, end)
-            if u64::from(runtime::get_blocktime()) <= start && start <= cancel && cancel <= end =>
-        {
-            (start, cancel, end)
-        }
-        _ => runtime::revert(AuctionError::InvalidTimes),
+    let start: u64 = runtime::get_named_arg(START);
+    let cancel: u64 = runtime::get_named_arg(CANCEL);
+    let end: u64 = runtime::get_named_arg(END);
+    if u64::from(runtime::get_blocktime()) <= start && start <= cancel && cancel <= end {
+        return (start, cancel, end);
     }
+    runtime::revert(AuctionError::InvalidTimes)
 }
 
 pub fn create_auction_named_keys() -> NamedKeys {
@@ -255,15 +252,18 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (PRICE, winning_bid),
         (WINNER, current_winner),
         (BIDS, bids),
-        (FINALIZED, finalized)
+        (FINALIZED, finalized),
+        (EVENTS_COUNT, 0_u32)
     );
 
-    add_empty_dict(&mut named_keys, "events");
-
+    add_empty_dict(&mut named_keys, EVENTS);
     named_keys
 }
 
 fn add_empty_dict(named_keys: &mut NamedKeys, name: &str) {
+    if runtime::get_key(name).is_some() {
+        runtime::remove_key(name);
+    }
     let dict = new_dictionary(name).unwrap_or_revert();
     runtime::remove_key(name);
     named_keys.insert(name.to_string(), dict.into());

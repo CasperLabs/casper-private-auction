@@ -91,6 +91,7 @@ impl CasperCEP47Contract {
         let session = SessionBuilder::new(session_code, session_args)
             .with_address(admin.to_account_hash())
             .with_authorization_keys(&[admin.to_account_hash()])
+            .with_block_time(crate::auction::get_now_u64())
             .build();
         context.run(session);
         let hash = context
@@ -173,6 +174,23 @@ impl CasperCEP47Contract {
                 value
             }
         }
+    }
+
+    pub fn get_event(&self, index: u32) -> BTreeMap<String, String> {
+        self.query_dictionary_value("events", index.to_string())
+            .unwrap()
+    }
+
+    pub fn get_events(&self) -> Vec<BTreeMap<String, String>> {
+        let mut events = Vec::new();
+        for i in 0..self.get_events_count() {
+            events.push(self.get_event(i));
+        }
+        events
+    }
+
+    pub fn get_events_count(&self) -> u32 {
+        self.query_contract("events_count").unwrap()
     }
 
     pub fn name(&self) -> String {

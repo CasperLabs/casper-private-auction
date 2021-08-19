@@ -1,6 +1,9 @@
 use alloc::collections::BTreeMap;
 use casper_contract::{
-    contract_api::{runtime, system},
+    contract_api::{
+        runtime::{self},
+        system,
+    },
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::account::AccountHash;
@@ -65,9 +68,9 @@ impl Auction {
             let caller: CallStackElement = call_stack.last().unwrap_or_revert().clone();
             match caller {
                 CallStackElement::StoredContract {
-                    contract_package_hash: _,
-                    contract_hash: contract_hash_addr_caller,
-                } => Key::Hash(contract_hash_addr_caller.value()),
+                    contract_package_hash,
+                    contract_hash: _,
+                } => Key::Hash(contract_package_hash.value()),
                 _ => runtime::revert(AuctionError::InvalidCaller),
             }
         };

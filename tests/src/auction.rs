@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use casper_engine_test_support::{
     internal::TIMESTAMP_MILLIS_INCREMENT, Code, Hash, SessionBuilder, TestContext,
     TestContextBuilder,
@@ -31,8 +33,7 @@ fn deploy_args(
     token_id: &str,
     english: bool,
 ) -> RuntimeArgs {
-    let now = get_now_u64();
-
+    let now: u64 = get_now_u64();
     runtime_args! {
         "beneficiary_account"=>Key::Account(*beneficiary),
         "token_contract_hash"=>Key::Hash(*nft),
@@ -40,9 +41,9 @@ fn deploy_args(
         "starting_price"=>if english{None}else{Some(U512::from(1000))},
         "reserve_price"=>U512::from(1000),
         "token_id"=>token_id,
-        "start_time" => now,
-        "cancellation_time" => now + 2000,
-        "end_time" => now + 2500,
+        "start_time" => now + 500,
+        "cancellation_time" => now + 3000,
+        "end_time" => now + 3500,
     }
 }
 pub struct AuctionContract {
@@ -64,6 +65,7 @@ impl AuctionContract {
         )
         .with_address(deployer)
         .with_authorization_keys(&[deployer])
+        .with_block_time(get_now_u64())
         .build();
         context.run(session);
         let contract_hash = context
@@ -77,34 +79,7 @@ impl AuctionContract {
             deployer,
         }
     }
-    /*
-       entry_points.add_entry_point(EntryPoint::new(
-           data::BID,
-           vec![
-               Parameter::new(data::BID, CLType::U512),
-               Parameter::new(data::BID_PURSE, CLType::URef),
-           ],
-           CLType::Unit,
-           EntryPointAccess::Public,
-           EntryPointType::Contract,
-       ));
 
-       entry_points.add_entry_point(EntryPoint::new(
-           data::CANCEL_FUNC,
-           vec![],
-           CLType::Unit,
-           EntryPointAccess::Public,
-           EntryPointType::Contract,
-       ));
-
-       entry_points.add_entry_point(EntryPoint::new(
-           data::FINALIZE_FUNC,
-           vec![],
-           CLType::Unit,
-           EntryPointAccess::Public,
-           EntryPointType::Contract,
-       ));
-    */
     pub fn bid(&mut self, bid: U512) {
         self.call(
             "bid",
@@ -124,11 +99,45 @@ impl AuctionContract {
     }
 
     pub fn is_finalized(&self) -> bool {
-        self.query_contract("finalized").unwrap()
+        self.query_contract(self.contract_hash, "finalized")
+            .unwrap()
     }
 
     pub fn get_end(&self) -> u64 {
-        self.query_contract("end_time").unwrap()
+        self.query_contract(self.contract_hash, "end_time").unwrap()
+    }
+
+    pub fn get_event(&self, contract_hash: [u8; 32], index: u32) -> BTreeMap<String, String> {
+        self.query_dictionary_value(
+            contract_hash,
+            if contract_hash != self.contract_hash {
+                "events"
+            } else {
+                "auction_events"
+            },
+            &index.to_string(),
+        )
+        .unwrap()
+    }
+
+    pub fn get_events(&self, contract_hash: [u8; 32]) -> Vec<BTreeMap<String, String>> {
+        let mut events = Vec::new();
+        for i in 0..self.get_events_count(contract_hash) {
+            events.push(self.get_event(contract_hash, i));
+        }
+        events
+    }
+
+    pub fn get_events_count(&self, contract_hash: [u8; 32]) -> u32 {
+        self.query_contract(
+            contract_hash,
+            if contract_hash != self.contract_hash {
+                "events_count"
+            } else {
+                "auction_events_count"
+            },
+        )
+        .unwrap()
     }
 
     /// Wrapper function for calling an entrypoint on the contract with the access rights of the deployer.
@@ -137,6 +146,7 @@ impl AuctionContract {
         let session = SessionBuilder::new(code, args)
             .with_address(self.deployer)
             .with_authorization_keys(&[self.deployer])
+            .with_block_time(get_now_u64())
             .build();
         self.context.run(session);
     }
@@ -144,6 +154,7 @@ impl AuctionContract {
     /// Wrapper for querying a dictionary entry.
     pub fn query_dictionary_value<T: CLTyped + FromBytes>(
         &self,
+        contract_hash: [u8; 32],
         dict_name: &str,
         key: &str,
     ) -> Option<T> {
@@ -151,25 +162,30 @@ impl AuctionContract {
         // or the address of the deployer, depending on where we initiated the dictionary.
         // In this example the dictionary can be reached from both.
         match self.context.query_dictionary_item(
-            Key::Hash(self.contract_hash),
+            Key::Hash(contract_hash),
             Some(dict_name.to_string()),
             key.to_string(),
         ) {
             Err(_) => None,
-            Ok(maybe_value) => {
-                println!("VALUE: {:#?}", maybe_value);
-                let value = maybe_value
-                    .into_t()
-                    .unwrap_or_else(|_| panic!("is not expected type."));
-                Some(value)
-            }
+            Ok(maybe_value) => maybe_value.into_t().unwrap(),
         }
     }
 
-    fn query_contract<T: CLTyped + FromBytes>(&self, name: &str) -> Option<T> {
+    fn query_contract<T: CLTyped + FromBytes>(
+        &self,
+        contract_hash: [u8; 32],
+        name: &str,
+    ) -> Option<T> {
         match self.context.query(
             self.deployer,
-            &["auction_contract_hash".to_string(), name.to_string()],
+            &[
+                if contract_hash != self.contract_hash {
+                    "DragonsNFT_contract".to_string()
+                } else {
+                    "auction_contract_hash".to_string()
+                },
+                name.to_string(),
+            ],
         ) {
             Err(e) => panic!("{:?}", e),
             Ok(maybe_value) => {

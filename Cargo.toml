@@ -3,7 +3,8 @@
 members = [
     "casper-civic-verifier",
     "casper-private-auction-core",
-    "casper-private-auction-installer"
+    "casper-private-auction-installer",
+    "tests"
 ]
 
 [profile.release]
