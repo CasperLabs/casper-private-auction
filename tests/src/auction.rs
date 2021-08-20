@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use crate::auction_args::AuctionArgsBuilder;
 use casper_engine_test_support::{
     internal::TIMESTAMP_MILLIS_INCREMENT, Code, Hash, SessionBuilder, TestContext,
     TestContextBuilder,
@@ -8,26 +9,6 @@ use casper_types::{
     account::AccountHash, bytesrepr::FromBytes, runtime_args, CLTyped, ContractHash,
     ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
 };
-
-use crate::auction_args::AuctionArgsBuilder;
-/*
-  --session-arg "beneficiary_account    :   key         ='$SELLER_ACCOUNT_ARG'"\
-  --session-arg "token_contract_hash    :   key         ='$TOKEN_CONTRACT_HASH_ARG'"\
-  --session-arg "format                 :   string      ='$FORMAT'"\
-  --session-arg "starting_price         :   opt_u512    =$STARTING_PRICE"\
-  --session-arg "reserve_price          :   u512        ='$RESERVE_PRICE'"\
-  --session-arg "token_id               :   string      ='$TOKEN_ID_ARG'"\
-  --session-arg "start_time             :   u64         ='$START_TIME'"\
-  --session-arg "cancellation_time      :   u64         ='$CANCEL_TIME'"\
-  --session-arg "end_time               :   u64         ='$END_TIME'"\
-*/
-pub fn get_now_u64() -> u64 {
-    use std::time::SystemTime;
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_millis() as u64,
-        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
-    }
-}
 
 pub struct AuctionContract {
     pub context: TestContext,
@@ -144,7 +125,7 @@ impl AuctionContract {
         let session = SessionBuilder::new(code, args)
             .with_address(self.deployer)
             .with_authorization_keys(&[self.deployer])
-            .with_block_time(get_now_u64())
+            .with_block_time(AuctionArgsBuilder::get_now_u64())
             .build();
         self.context.run(session);
     }
