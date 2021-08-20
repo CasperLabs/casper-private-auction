@@ -10,7 +10,10 @@ use casper_types::{
     ApiError, CLTyped, ContractHash, URef,
 };
 
-use crate::error::AuctionError;
+use crate::{
+    error::AuctionError,
+    events::{emit, AuctionEvent},
+};
 use alloc::{
     collections::BTreeMap,
     string::{String, ToString},
@@ -93,6 +96,10 @@ impl AuctionData {
     pub fn set_winner(winner: Option<AccountHash>, bid: Option<U512>) {
         write_named_key_value(WINNER, winner);
         write_named_key_value(PRICE, bid);
+        emit(&AuctionEvent::SetWinner {
+            bidder: winner.unwrap_or_revert_with(AuctionError::Internal),
+            bid: bid.unwrap_or_revert_with(AuctionError::InternalTwo),
+        })
     }
 
     pub fn is_english_format() -> bool {
@@ -175,7 +182,7 @@ impl AuctionData {
     pub fn is_auction_live() -> bool {
         // Check that it's not too late and that the auction isn't finalized
         let start_time = AuctionData::get_start();
-        let end_time = AuctionData::get_start();
+        let end_time = AuctionData::get_end();
         let block_time = u64::from(runtime::get_blocktime());
         if block_time < start_time {
             runtime::revert(AuctionError::EarlyBid)

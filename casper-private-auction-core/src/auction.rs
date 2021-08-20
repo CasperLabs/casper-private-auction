@@ -159,6 +159,8 @@ impl crate::AuctionLogic for Auction {
                 if bid > current_price {
                     AuctionData::set_winner(Some(bidder), Some(bid));
                 }
+            } else if let (None, None) = (winner, price) {
+                AuctionData::set_winner(Some(bidder), Some(bid));
             }
         }
         emit(&AuctionEvent::Bid { bidder, bid })

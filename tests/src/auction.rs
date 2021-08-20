@@ -8,6 +8,8 @@ use casper_types::{
     account::AccountHash, bytesrepr::FromBytes, runtime_args, CLTyped, ContractHash,
     ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
 };
+
+use crate::auction_args::AuctionArgsBuilder;
 /*
   --session-arg "beneficiary_account    :   key         ='$SELLER_ACCOUNT_ARG'"\
   --session-arg "token_contract_hash    :   key         ='$TOKEN_CONTRACT_HASH_ARG'"\
@@ -27,25 +29,6 @@ pub fn get_now_u64() -> u64 {
     }
 }
 
-fn deploy_args(
-    beneficiary: &AccountHash,
-    nft: &Hash,
-    token_id: &str,
-    english: bool,
-) -> RuntimeArgs {
-    let now: u64 = get_now_u64();
-    runtime_args! {
-        "beneficiary_account"=>Key::Account(*beneficiary),
-        "token_contract_hash"=>Key::Hash(*nft),
-        "format"=>if english{"ENGLISH"}else{"DUTCH"},
-        "starting_price"=>if english{None}else{Some(U512::from(1000))},
-        "reserve_price"=>U512::from(1000),
-        "token_id"=>token_id,
-        "start_time" => now + 500,
-        "cancellation_time" => now + 3000,
-        "end_time" => now + 3500,
-    }
-}
 pub struct AuctionContract {
     pub context: TestContext,
     pub contract_hash: Hash,
@@ -57,16 +40,15 @@ impl AuctionContract {
         let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
         let public_key: PublicKey = (&admin_secret).into();
         let deployer = AccountHash::from(&public_key);
-
+        let now = AuctionArgsBuilder::get_now_u64();
+        let auction_args =
+            AuctionArgsBuilder::new_with_necessary(&deployer, &nft, token_id, english, now + 500);
         let session_code = Code::from("casper-private-auction-installer.wasm");
-        let session = SessionBuilder::new(
-            session_code,
-            deploy_args(&deployer, &nft, token_id, english),
-        )
-        .with_address(deployer)
-        .with_authorization_keys(&[deployer])
-        .with_block_time(get_now_u64())
-        .build();
+        let session = SessionBuilder::new(session_code, auction_args.build())
+            .with_address(deployer)
+            .with_authorization_keys(&[deployer])
+            .with_block_time(now)
+            .build();
         context.run(session);
         let contract_hash = context
             .query(deployer, &["auction_contract_hash_wrapped".into()])
@@ -80,14 +62,20 @@ impl AuctionContract {
         }
     }
 
-    pub fn bid(&mut self, bid: U512) {
-        self.call(
-            "bid",
+    pub fn bid(&mut self, bidder: &AccountHash, bid: U512, block_time: u64) {
+        let session_code = Code::from("bid-purse.wasm");
+        let session = SessionBuilder::new(
+            session_code,
             runtime_args! {
-                //"bid" => bid,
-                //"bid_purse" => URef
+                "bid" => bid,
+                "auction_contract" => self.contract_hash
             },
         )
+        .with_address(*bidder)
+        .with_authorization_keys(&[*bidder])
+        .with_block_time(block_time)
+        .build();
+        self.context.run(session);
     }
 
     pub fn cancel(&mut self) {
@@ -105,6 +93,16 @@ impl AuctionContract {
 
     pub fn get_end(&self) -> u64 {
         self.query_contract(self.contract_hash, "end_time").unwrap()
+    }
+
+    pub fn get_winner(&self) -> Option<AccountHash> {
+        self.query_contract(self.contract_hash, "current_winner")
+            .unwrap()
+    }
+
+    pub fn get_winning_bid(&self) -> Option<U512> {
+        self.query_contract(self.contract_hash, "winning_bid")
+            .unwrap()
     }
 
     pub fn get_event(&self, contract_hash: [u8; 32], index: u32) -> BTreeMap<String, String> {

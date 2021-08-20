@@ -91,7 +91,6 @@ impl CasperCEP47Contract {
         let session = SessionBuilder::new(session_code, session_args)
             .with_address(admin.to_account_hash())
             .with_authorization_keys(&[admin.to_account_hash()])
-            .with_block_time(crate::auction::get_now_u64())
             .build();
         context.run(session);
         let hash = context

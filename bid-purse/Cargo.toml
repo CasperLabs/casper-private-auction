@@ -1,0 +1,15 @@
+[package]
+name = "bid-purse"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+casper-contract = "1.3.2"
+casper-types = "1.3.2"
+
+[[bin]]
+name = "bid-purse"
+path = "src/main.rs"
+bench = false
+doctest = false
+test = false

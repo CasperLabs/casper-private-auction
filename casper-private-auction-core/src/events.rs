@@ -10,6 +10,7 @@ use casper_types::Key;
 use casper_types::{account::AccountHash, U512};
 pub enum AuctionEvent {
     Bid { bidder: AccountHash, bid: U512 },
+    SetWinner { bidder: AccountHash, bid: U512 },
     BidCancelled { bidder: AccountHash },
     Finalized { winner: Option<(AccountHash, U512)> },
 }
@@ -23,6 +24,15 @@ pub fn emit(event: &AuctionEvent) {
             let event_id = events_count.to_string();
             event.insert("event_id", event_id.clone());
             event.insert("bidder", bidder.to_string());
+            event.insert("event_type", "Bid".to_string());
+            event.insert("bid", bid.to_string());
+            (event, event_id)
+        }
+        AuctionEvent::SetWinner { bidder, bid } => {
+            let mut event = BTreeMap::new();
+            let event_id = events_count.to_string();
+            event.insert("event_id", event_id.clone());
+            event.insert("winner", bidder.to_string());
             event.insert("event_type", "Bid".to_string());
             event.insert("bid", bid.to_string());
             (event, event_id)
