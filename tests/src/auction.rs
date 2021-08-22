@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::auction_args::AuctionArgsBuilder;
+use crate::{auction_args::AuctionArgsBuilder, nft};
 use casper_engine_test_support::{
     internal::TIMESTAMP_MILLIS_INCREMENT, Code, Hash, SessionBuilder, TestContext,
     TestContextBuilder,
@@ -13,33 +13,94 @@ use casper_types::{
 pub struct AuctionContract {
     pub context: TestContext,
     pub contract_hash: Hash,
-    pub deployer: AccountHash,
+    pub admin: AccountHash,
+    pub ali: AccountHash,
+    pub bob: AccountHash,
 }
 
 impl AuctionContract {
-    pub fn deploy(mut context: TestContext, nft: Hash, token_id: &str, english: bool) -> Self {
-        let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
-        let public_key: PublicKey = (&admin_secret).into();
-        let deployer = AccountHash::from(&public_key);
-        let now = AuctionArgsBuilder::get_now_u64();
+    pub fn deploy_with_default_args(english: bool, start_time: u64) -> Self {
+        let mut cep47 = nft::CasperCEP47Contract::deploy();
+        let token_id = String::from("custom_token_id");
+        let token_meta = nft::meta::red_dragon();
+        cep47.mint_one(
+            &Key::Account(cep47.admin),
+            Some(&token_id),
+            &token_meta,
+            &(cep47.admin.clone()),
+        );
+
+        let nft::CasperCEP47Contract {
+            mut context,
+            hash,
+            admin,
+            ali,
+            bob,
+        } = cep47;
+
         let auction_args =
-            AuctionArgsBuilder::new_with_necessary(&deployer, &nft, token_id, english, now + 500);
+            AuctionArgsBuilder::new_with_necessary(&admin, &hash, &token_id, english, start_time);
         let session_code = Code::from("casper-private-auction-installer.wasm");
         let session = SessionBuilder::new(session_code, auction_args.build())
-            .with_address(deployer)
-            .with_authorization_keys(&[deployer])
-            .with_block_time(now)
+            .with_address(admin)
+            .with_authorization_keys(&[admin])
+            .with_block_time(start_time - 1)
             .build();
         context.run(session);
         let contract_hash = context
-            .query(deployer, &["auction_contract_hash_wrapped".into()])
+            .query(admin, &["auction_contract_hash_wrapped".into()])
             .unwrap()
             .into_t()
             .unwrap();
         Self {
             context,
             contract_hash,
-            deployer,
+            admin,
+            ali,
+            bob,
+        }
+    }
+
+    pub fn deploy(mut auction_args: AuctionArgsBuilder) -> Self {
+        let mut cep47 = nft::CasperCEP47Contract::deploy();
+        let token_id = String::from("custom_token_id");
+        let token_meta = nft::meta::red_dragon();
+        cep47.mint_one(
+            &Key::Account(cep47.admin),
+            Some(&token_id),
+            &token_meta,
+            &(cep47.admin.clone()),
+        );
+
+        let nft::CasperCEP47Contract {
+            mut context,
+            hash,
+            admin,
+            ali,
+            bob,
+        } = cep47;
+        auction_args.set_beneficiary(&admin);
+        auction_args.set_token_contract_hash(&hash);
+        auction_args.set_token_id(&token_id);
+        let start_time = auction_args.start_time;
+        let session_code = Code::from("casper-private-auction-installer.wasm");
+        let session = SessionBuilder::new(session_code, auction_args.build())
+            .with_address(admin)
+            .with_authorization_keys(&[admin])
+            .with_block_time(start_time - 1)
+            .build();
+        context.run(session);
+        let contract_hash = context
+            .query(admin, &["auction_contract_hash_wrapped".into()])
+            .unwrap()
+            .into_t()
+            .unwrap();
+        Self {
+            context,
+            contract_hash,
+            admin,
+            ali,
+            bob,
         }
     }
 
@@ -59,12 +120,12 @@ impl AuctionContract {
         self.context.run(session);
     }
 
-    pub fn cancel(&mut self) {
-        self.call("cancel", runtime_args! {})
+    pub fn cancel_bid(&mut self, caller: &AccountHash, time: u64) {
+        self.call(caller, "cancel_bid", runtime_args! {}, time)
     }
 
-    pub fn finalize(&mut self) {
-        self.call("finalize", runtime_args! {})
+    pub fn finalize(&mut self, caller: &AccountHash, time: u64) {
+        self.call(caller, "finalize", runtime_args! {}, time)
     }
 
     pub fn is_finalized(&self) -> bool {
@@ -120,12 +181,12 @@ impl AuctionContract {
     }
 
     /// Wrapper function for calling an entrypoint on the contract with the access rights of the deployer.
-    fn call(&mut self, method: &str, args: RuntimeArgs) {
+    fn call(&mut self, caller: &AccountHash, method: &str, args: RuntimeArgs, time: u64) {
         let code = Code::Hash(self.contract_hash, method.to_string());
         let session = SessionBuilder::new(code, args)
-            .with_address(self.deployer)
-            .with_authorization_keys(&[self.deployer])
-            .with_block_time(AuctionArgsBuilder::get_now_u64())
+            .with_address(*caller)
+            .with_authorization_keys(&[*caller])
+            .with_block_time(time)
             .build();
         self.context.run(session);
     }
@@ -156,7 +217,7 @@ impl AuctionContract {
         name: &str,
     ) -> Option<T> {
         match self.context.query(
-            self.deployer,
+            self.admin,
             &[
                 if contract_hash != self.contract_hash {
                     "DragonsNFT_contract".to_string()
@@ -172,5 +233,10 @@ impl AuctionContract {
                 Some(value)
             }
         }
+    }
+
+    pub fn get_account_balance(&self, account: &AccountHash) -> U512 {
+        self.context
+            .get_balance(self.context.main_purse_address(*account).unwrap().addr())
     }
 }

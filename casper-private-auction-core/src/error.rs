@@ -1,7 +1,7 @@
 use casper_types::ApiError;
 
 pub enum AuctionError {
-    Early = 0,
+    EarlyFinalize = 0,
     InvalidCaller = 1,
     LateBid = 2,
     BidTooLow = 3,

@@ -146,12 +146,15 @@ impl crate::AuctionLogic for Auction {
         let price = AuctionData::get_price();
         if !AuctionData::is_english_format() {
             if let (None, None) = (winner, price) {
-                if bid < AuctionData::get_current_price() {
+                let current_price = AuctionData::get_current_price();
+                if bid < current_price {
                     runtime::revert(AuctionError::BidTooLow);
                 }
-                Self::add_bid(bidder, bidder_purse, AuctionData::get_current_price());
+                Self::add_bid(bidder, bidder_purse, current_price);
                 AuctionData::set_winner(Some(bidder), Some(bid));
                 Self::auction_finalize(false);
+            } else {
+                runtime::revert(AuctionError::BadState);
             }
         } else {
             Self::add_bid(bidder, bidder_purse, bid);
@@ -187,7 +190,7 @@ impl crate::AuctionLogic for Auction {
                         _ => AuctionData::set_winner(None, None),
                     }
                 }
-                _ => runtime::revert(AuctionError::NoBid),
+                None => runtime::revert(AuctionError::NoBid),
             }
         } else {
             runtime::revert(AuctionError::LateCancellation)
@@ -203,7 +206,7 @@ impl crate::AuctionLogic for Auction {
 
         // We're not finalized, so let's get all the other arguments, as well as time to make sure we're not too early
         if time_check && u64::from(runtime::get_blocktime()) < AuctionData::get_end() {
-            runtime::revert(AuctionError::Early)
+            runtime::revert(AuctionError::EarlyFinalize)
         }
 
         // TODO: Figure out how to gracefully finalize if the keys are bad

@@ -37,10 +37,10 @@ pub struct AuctionArgsBuilder {
     // true is `ENGLISH` | false is `DUTCH`
     is_english: bool,
     // ENGLISH format cannot have a starting price, build turn it into option
-    starting_price: U512,
+    starting_price: Option<U512>,
     reserve_price: U512,
     token_id: String,
-    start_time: u64,
+    pub start_time: u64,
     cancellation_time: u64,
     end_time: u64,
 }
@@ -57,7 +57,7 @@ impl AuctionArgsBuilder {
             beneficiary_account: *beneficiary,
             token_contract_hash: *nft,
             is_english: english,
-            starting_price: U512::from(0),
+            starting_price: None,
             reserve_price: U512::from(1000),
             token_id: token_id.to_string(),
             start_time,
@@ -86,7 +86,7 @@ impl AuctionArgsBuilder {
         self.token_contract_hash = *token_contract_hash;
     }
 
-    pub fn set_starting_price(&mut self, starting_price: U512) {
+    pub fn set_starting_price(&mut self, starting_price: Option<U512>) {
         self.starting_price = starting_price;
     }
 
@@ -111,7 +111,7 @@ impl AuctionArgsBuilder {
             "beneficiary_account"=>Key::Account(self.beneficiary_account),
             "token_contract_hash"=>Key::Hash(self.token_contract_hash),
             "format"=>if self.is_english{"ENGLISH"}else{"DUTCH"},
-            "starting_price"=>if self.is_english{None}else{Some(self.starting_price)},
+            "starting_price"=> self.starting_price,
             "reserve_price"=>self.reserve_price,
             "token_id"=>self.token_id.to_owned(),
             "start_time" => self.start_time,
@@ -137,7 +137,7 @@ impl Default for AuctionArgsBuilder {
             beneficiary_account: AccountHash::from(&(&admin_secret).into()),
             token_contract_hash: [0u8; 32],
             is_english: true,
-            starting_price: U512::from(0),
+            starting_price: None,
             reserve_price: U512::from(1000),
             token_id: "token_id".to_string(),
             start_time: now + 500,

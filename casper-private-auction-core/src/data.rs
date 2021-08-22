@@ -126,9 +126,13 @@ impl AuctionData {
         read_named_key_value::<Option<AccountHash>>(WINNER)
     }
 
+    pub fn get_start_price() -> Option<U512> {
+        read_named_key_value::<Option<U512>>(START_PRICE)
+    }
+
     pub fn get_current_price() -> U512 {
         let block_time = u64::from(runtime::get_blocktime());
-        let start_price = match read_named_key_value::<Option<U512>>(START_PRICE) {
+        let start_price = match Self::get_start_price() {
             Some(p) => p,
             None => runtime::revert(AuctionError::BadState),
         };
