@@ -203,7 +203,11 @@ fn auction_times_match() -> (u64, u64, u64) {
     let start: u64 = runtime::get_named_arg(START);
     let cancel: u64 = runtime::get_named_arg(CANCEL);
     let end: u64 = runtime::get_named_arg(END);
-    if u64::from(runtime::get_blocktime()) <= start && start <= cancel && cancel <= end {
+    if u64::from(runtime::get_blocktime()) <= start
+        && start <= cancel
+        && cancel <= end
+        && start < end
+    {
         return (start, cancel, end);
     }
     runtime::revert(AuctionError::InvalidTimes)

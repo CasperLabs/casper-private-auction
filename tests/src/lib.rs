@@ -24,10 +24,6 @@ fn english_auction_bid_finalize_test() {
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now);
     auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
     assert!(auction_contract.is_finalized());
-    println!(
-        "{:?}",
-        auction_contract.get_events(auction_contract.contract_hash)
-    );
     assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
     assert_eq!(
         U512::from(40000),
@@ -45,13 +41,24 @@ fn english_auction_bid_cancel_test() {
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3);
     auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
     assert!(auction_contract.is_finalized());
-    println!(
-        "{:?}",
-        auction_contract.get_events(auction_contract.contract_hash)
-    );
     assert_eq!(auction_contract.ali, auction_contract.get_winner().unwrap());
     assert_eq!(
         U512::from(30000),
+        auction_contract.get_winning_bid().unwrap()
+    );
+}
+#[test]
+fn dutch_auction_bid_finalize_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    auction_args.set_starting_price(Some(U512::from(40000)));
+    auction_args.set_dutch();
+    let mut auction_contract = auction::AuctionContract::deploy(auction_args);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
+    assert!(auction_contract.is_finalized());
+    assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
+    assert_eq!(
+        U512::from(40000),
         auction_contract.get_winning_bid().unwrap()
     );
 }
@@ -193,6 +200,47 @@ fn auction_unknown_format_test() {
     context.run(session);
 }
 
+// Deploying with wrong times reverts with User(9) error
+#[test]
+#[should_panic = "User(9)"]
+fn auction_bad_times_test() {
+    let mut cep47 = nft::CasperCEP47Contract::deploy();
+    let token_id = String::from("custom_token_id");
+    let token_meta = nft::meta::red_dragon();
+    cep47.mint_one(
+        &Key::Account(cep47.admin),
+        Some(&token_id),
+        &token_meta,
+        &(cep47.admin.clone()),
+    );
+
+    let nft::CasperCEP47Contract {
+        mut context,
+        hash,
+        admin,
+        ali,
+        bob,
+    } = cep47;
+    let auction_args = runtime_args! {
+        "beneficiary_account"=>Key::Account(admin),
+        "token_contract_hash"=>Key::Hash(hash),
+        "format"=> "ENGLISH",
+        "starting_price"=> None::<U512>,
+        "reserve_price"=>U512::from(300),
+        "token_id"=>token_id,
+        "start_time" => 1000_u64,
+        "cancellation_time" => 20_u64,
+        "end_time" => 11_u64,
+    };
+    let session_code = Code::from("casper-private-auction-installer.wasm");
+    let session = SessionBuilder::new(session_code, auction_args)
+        .with_address(admin)
+        .with_authorization_keys(&[admin])
+        .with_block_time(0)
+        .build();
+    context.run(session);
+}
+
 // Any combination of bad prices on auction deployment returns User(10)
 #[test]
 #[should_panic = "User(10)"]
@@ -203,10 +251,6 @@ fn dutch_auction_no_starting_price_test() {
     auction_args.set_dutch();
     let mut auction_contract = auction::AuctionContract::deploy(auction_args);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
-    println!(
-        "{:?}",
-        auction_contract.get_events(auction_contract.contract_hash)
-    );
 }
 
 #[test]
@@ -215,44 +259,4 @@ fn english_auction_bid_early_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now - 1000);
-}
-
-// #[test]
-fn dutch_auction_bid_finalize_test() {
-    let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(false, now);
-    assert!(now < auction_contract.get_end());
-    auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now);
-    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now);
-    auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
-    assert!(auction_contract.is_finalized());
-    println!(
-        "{:?}",
-        auction_contract.get_events(auction_contract.contract_hash)
-    );
-    assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
-    assert_eq!(
-        U512::from(40000),
-        auction_contract.get_winning_bid().unwrap()
-    );
-}
-
-// #[test]
-fn dutch_auction_bid_cancel_test() {
-    let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(false, now);
-    assert!(now < auction_contract.get_end());
-    auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now);
-    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now);
-    auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
-    assert!(auction_contract.is_finalized());
-    println!(
-        "{:?}",
-        auction_contract.get_events(auction_contract.contract_hash)
-    );
-    assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
-    assert_eq!(
-        U512::from(40000),
-        auction_contract.get_winning_bid().unwrap()
-    );
 }
