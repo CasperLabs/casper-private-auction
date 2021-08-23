@@ -20,71 +20,71 @@ pub struct AuctionContract {
 
 impl AuctionContract {
     pub fn deploy_with_default_args(english: bool, start_time: u64) -> Self {
-        let mut cep47 = nft::CasperCEP47Contract::deploy();
         let token_id = String::from("custom_token_id");
-        let token_meta = nft::meta::red_dragon();
-        cep47.mint_one(
-            &Key::Account(cep47.admin),
-            Some(&token_id),
-            &token_meta,
-            &(cep47.admin.clone()),
-        );
-
         let nft::CasperCEP47Contract {
             mut context,
             hash,
             admin,
             ali,
             bob,
-        } = cep47;
-
+        } = Self::nft_deploy_and_mint(&token_id);
         let auction_args =
             AuctionArgsBuilder::new_with_necessary(&admin, &hash, &token_id, english, start_time);
-        let session_code = Code::from("casper-private-auction-installer.wasm");
-        let session = SessionBuilder::new(session_code, auction_args.build())
-            .with_address(admin)
-            .with_authorization_keys(&[admin])
-            .with_block_time(start_time - 1)
-            .build();
-        context.run(session);
-        let contract_hash = context
-            .query(admin, &["auction_contract_hash_wrapped".into()])
-            .unwrap()
-            .into_t()
-            .unwrap();
-        Self {
+        Self::deploy_auction(
             context,
-            contract_hash,
+            auction_args.build(),
+            auction_args.start_time,
             admin,
             ali,
             bob,
-        }
+        )
     }
 
     pub fn deploy(mut auction_args: AuctionArgsBuilder) -> Self {
-        let mut cep47 = nft::CasperCEP47Contract::deploy();
         let token_id = String::from("custom_token_id");
-        let token_meta = nft::meta::red_dragon();
-        cep47.mint_one(
-            &Key::Account(cep47.admin),
-            Some(&token_id),
-            &token_meta,
-            &(cep47.admin.clone()),
-        );
-
         let nft::CasperCEP47Contract {
             mut context,
             hash,
             admin,
             ali,
             bob,
-        } = cep47;
+        } = Self::nft_deploy_and_mint(&token_id);
         auction_args.set_beneficiary(&admin);
         auction_args.set_token_contract_hash(&hash);
         auction_args.set_token_id(&token_id);
         let start_time = auction_args.start_time;
+        Self::deploy_auction(
+            context,
+            auction_args.build(),
+            auction_args.start_time,
+            admin,
+            ali,
+            bob,
+        )
+    }
+
+    pub fn nft_deploy_and_mint(token_id: &str) -> nft::CasperCEP47Contract {
+        let mut cep47 = nft::CasperCEP47Contract::deploy();
+        let token_meta = nft::meta::red_dragon();
+        cep47.mint_one(
+            &Key::Account(cep47.admin),
+            Some(&token_id.to_string()),
+            &token_meta,
+            &(cep47.admin.clone()),
+        );
+        cep47
+    }
+
+    pub fn deploy_auction(
+        mut context: TestContext,
+        args: RuntimeArgs,
+        start_time: u64,
+        admin: AccountHash,
+        ali: AccountHash,
+        bob: AccountHash,
+    ) -> Self {
         let session_code = Code::from("casper-private-auction-installer.wasm");
-        let session = SessionBuilder::new(session_code, auction_args.build())
+        let session = SessionBuilder::new(session_code, args)
             .with_address(admin)
             .with_authorization_keys(&[admin])
             .with_block_time(start_time - 1)
