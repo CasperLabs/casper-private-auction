@@ -79,8 +79,6 @@ pub enum AuctionError {
     EarlyBid = 11,
     InvalidBeneficiary = 12,
     BadKey = 13,
-    Internal = 14,
-    InternalTwo = 15,
 }
 */
 
@@ -93,17 +91,8 @@ fn english_auction_early_finalize_test() {
     auction_contract.finalize(&auction_contract.admin.clone(), now + 300);
 }
 
-/*
 // User error 1 happens if not the correct user is trying to interact with the auction.
 // More precisely, if a) the bidder is a contract. b) someone other than a stored contact is trying to transfer out the auctioned token
-#[test]
-#[should_panic = "User(1)"]
-fn english_auction_early_finalize_test() {
-    let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
-    auction_contract.finalize(&auction_contract.admin.clone(),now + 300);
-}
-*/
 
 // Trying to bid after the end of the auction results in User(2) error
 #[test]
@@ -127,6 +116,17 @@ fn english_auction_bid_too_low_test() {
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(1), now + 10000);
 }
 
+#[test]
+#[should_panic = "User(3)"]
+fn dutch_auction_bid_too_low_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    auction_args.set_starting_price(Some(U512::from(40000)));
+    auction_args.set_dutch();
+    let mut auction_contract = auction::AuctionContract::deploy(auction_args);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
+}
+
 // Finalizing after finalizing is User(4) error.
 #[test]
 #[should_panic = "User(4)"]
@@ -138,8 +138,19 @@ fn english_auction_bid_after_finalized_test() {
     auction_contract.finalize(&auction_contract.admin.clone(), now + 3501);
 }
 
-// User(5) is BadState. Either the auction managed to be finalized before expiring, or Dutch contract was initialized without starting price.
-// TODO: simulate User(5), cannot currently do it as auction init throws back the state with User(10)
+// Fails with BadState (User(5)) error since on bidding the contract notices that it was already finalized.
+// User(5) might also be either that the auction managed to be finalized before expiring, or Dutch contract was initialized without starting price.
+#[test]
+#[should_panic = "User(5)"]
+fn dutch_auction_already_taken_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    auction_args.set_starting_price(Some(U512::from(40000)));
+    auction_args.set_dutch();
+    let mut auction_contract = auction::AuctionContract::deploy(auction_args);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1001);
+}
 
 // User(6) error -> trying to cancel a bid that wasn't placed
 #[test]

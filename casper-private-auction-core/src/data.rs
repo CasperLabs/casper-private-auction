@@ -97,8 +97,8 @@ impl AuctionData {
         write_named_key_value(WINNER, winner);
         write_named_key_value(PRICE, bid);
         emit(&AuctionEvent::SetWinner {
-            bidder: winner.unwrap_or_revert_with(AuctionError::Internal),
-            bid: bid.unwrap_or_revert_with(AuctionError::InternalTwo),
+            bidder: winner.unwrap_or_revert(),
+            bid: bid.unwrap_or_revert(),
         })
     }
 
