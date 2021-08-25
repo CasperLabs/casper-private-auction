@@ -49,8 +49,8 @@ pub mod token_cfg {
     }
 }
 
-pub const CONTRACT_KEY: &str = "DragonsNFT_contract";
-pub const CONTRACT_HASH_KEY: &str = "DragonsNFT_contract_hash";
+pub const CONTRACT_KEY: &str = "NFT_contract_hash";
+pub const CONTRACT_HASH_KEY: &str = "NFT_contract_hash_wrapped";
 
 const BALANCES_DICT: &str = "balances";
 const OWNED_TOKENS_DICT: &str = "owned_tokens";
@@ -82,11 +82,12 @@ impl CasperCEP47Contract {
             .with_public_key(ali.clone(), U512::from(500_000_000_000_000_000u64))
             .with_public_key(bob.clone(), U512::from(500_000_000_000_000_000u64))
             .build();
-        let session_code = Code::from("dragons-nft.wasm");
+        let session_code = Code::from("cep47-token.wasm");
         let session_args = runtime_args! {
-            "token_name" => token_cfg::NAME,
-            "token_symbol" => token_cfg::SYMBOL,
-            "token_meta" => token_cfg::contract_meta()
+            "name" => token_cfg::NAME,
+            "symbol" => token_cfg::SYMBOL,
+            "meta" => token_cfg::contract_meta(),
+            "contract_name" => "NFT".to_string()
         };
         let session = SessionBuilder::new(session_code, session_args)
             .with_address(admin.to_account_hash())
@@ -98,7 +99,6 @@ impl CasperCEP47Contract {
             .unwrap()
             .into_t()
             .unwrap();
-
         Self {
             context,
             hash,
@@ -106,28 +106,6 @@ impl CasperCEP47Contract {
             ali: ali.to_account_hash(),
             bob: bob.to_account_hash(),
         }
-    }
-
-    pub fn deploy_secondary_contract(&mut self, wasm: &str, args: RuntimeArgs) -> (Hash, HashAddr) {
-        let session_code = Code::from(wasm);
-        let session = SessionBuilder::new(session_code, args)
-            .with_address(self.admin)
-            .with_authorization_keys(&[self.admin])
-            .build();
-        self.context.run(session);
-        let hash = self
-            .context
-            .query(self.admin, &["owning_contract_hash".to_string()])
-            .unwrap()
-            .into_t()
-            .unwrap();
-        let package = self
-            .context
-            .query(self.admin, &["owning_contract_pack".to_string()])
-            .unwrap()
-            .into_t()
-            .unwrap();
-        (hash, package)
     }
 
     fn call(&mut self, sender: &AccountHash, method: &str, args: RuntimeArgs) {
@@ -192,44 +170,7 @@ impl CasperCEP47Contract {
         self.query_contract("events_count").unwrap()
     }
 
-    pub fn name(&self) -> String {
-        self.query_contract("name").unwrap()
-    }
-
-    pub fn symbol(&self) -> String {
-        self.query_contract("symbol").unwrap()
-    }
-
-    pub fn meta(&self) -> Meta {
-        self.query_contract("meta").unwrap()
-    }
-
-    pub fn total_supply(&self) -> U256 {
-        self.query_contract("total_supply").unwrap()
-    }
-
-    pub fn owner_of(&self, token_id: TokenId) -> Key {
-        self.query_dictionary_value::<Key>(TOKEN_OWNERS_DICT, token_id)
-            .unwrap()
-    }
-
-    pub fn balance_of(&self, owner: &Key) -> U256 {
-        let value: Option<U256> =
-            self.query_dictionary_value(BALANCES_DICT, Self::key_to_str(owner));
-        value.unwrap_or_default()
-    }
-
-    pub fn tokens(&self, owner: &Key) -> Vec<TokenId> {
-        let value: Option<Vec<TokenId>> =
-            self.query_dictionary_value(OWNED_TOKENS_DICT, Self::key_to_str(owner));
-        value.unwrap_or_default()
-    }
-
-    pub fn token_meta(&self, token_id: TokenId) -> Option<Meta> {
-        self.query_dictionary_value(METADATA_DICT, token_id)
-    }
-
-    pub fn mint_one(
+    pub fn mint(
         &mut self,
         recipient: &Key,
         token_id: Option<&TokenId>,
@@ -238,11 +179,11 @@ impl CasperCEP47Contract {
     ) {
         self.call(
             sender,
-            "mint_one",
+            "mint",
             runtime_args! {
                 "recipient" => *recipient,
-                "token_id" => token_id.cloned(),
-                "token_meta" => token_meta.clone()
+                "token_ids" => Some(vec![token_id.unwrap().to_owned()]),
+                "token_metas" => vec![token_meta.clone()]
             },
         );
     }
@@ -285,111 +226,15 @@ impl CasperCEP47Contract {
         );
     }
 
-    pub fn burn_many(&mut self, owner: &AccountHash, token_ids: &[TokenId], sender: &AccountHash) {
-        self.call(
-            sender,
-            "burn_many",
-            runtime_args! {
-                "owner" => Key::from(*owner),
-                "token_ids" => token_ids.to_owned()
-            },
-        );
-    }
-
-    pub fn burn_one(&mut self, owner: &AccountHash, token_id: TokenId, sender: &AccountHash) {
-        self.call(
-            sender,
-            "burn_one",
-            runtime_args! {
-                "owner" => Key::from(*owner),
-                "token_id" => token_id
-            },
-        );
-    }
-
     pub fn transfer_token(&mut self, recipient: &Key, token_id: TokenId, sender: &AccountHash) {
         self.call(
             sender,
             "transfer_token",
             runtime_args! {
                 "recipient" => *recipient,
-                "token_id" => token_id
+                "token_id" => vec![token_id]
             },
         );
-    }
-
-    pub fn transfer_token_from_contract(
-        &mut self,
-        contract_manager: &AccountHash,
-        contract_hash: &Hash,
-        recipient: &Key,
-        token_id: TokenId,
-    ) {
-        let code = Code::Hash(*contract_hash, "transfer_token".to_string());
-        let nft_package: ContractPackageHash =
-            self.query_contract("contract_package_hash").unwrap();
-        let session = SessionBuilder::new(
-            code,
-            runtime_args! {
-                "nft" => nft_package,
-                "sender" => Key::Hash(*contract_hash),
-                "recipient" => *recipient,
-                "token_id" => token_id
-            },
-        )
-        .with_address(*contract_manager)
-        .with_authorization_keys(&[*contract_manager])
-        .build();
-        self.context.run(session);
-    }
-
-    pub fn transfer_many_tokens(
-        &mut self,
-        recipient: &AccountHash,
-        token_ids: &[TokenId],
-        sender: &AccountHash,
-    ) {
-        self.call(
-            sender,
-            "transfer_many_tokens",
-            runtime_args! {
-                "recipient" => Key::from(*recipient),
-                "token_ids" => token_ids.to_owned()
-            },
-        );
-    }
-
-    pub fn transfer_all_tokens(&mut self, recipient: &AccountHash, sender: &AccountHash) {
-        self.call(
-            sender,
-            "transfer_all_tokens",
-            runtime_args! {
-                "recipient" => Key::from(*recipient)
-            },
-        );
-    }
-
-    pub fn update_token_metadata(&mut self, token_id: TokenId, meta: &Meta, sender: &AccountHash) {
-        self.call(
-            sender,
-            "update_token_metadata",
-            runtime_args! {
-                "token_id" => token_id,
-                "token_meta" => meta.clone()
-            },
-        );
-    }
-
-    pub fn pause(&mut self, sender: &AccountHash) {
-        self.call(sender, "pause", runtime_args! {});
-    }
-
-    pub fn unpause(&mut self, sender: &AccountHash) {
-        self.call(sender, "unpause", runtime_args! {});
-    }
-
-    pub fn is_paused(&mut self) -> bool {
-        self.query_contract("paused").unwrap()
     }
 
     fn key_to_str(key: &Key) -> String {

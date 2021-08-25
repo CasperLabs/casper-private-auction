@@ -74,14 +74,15 @@ impl Auction {
                 _ => runtime::revert(AuctionError::InvalidCaller),
             }
         };
-
+        let mut token_ids = alloc::vec::Vec::new();
+        token_ids.push(AuctionData::get_token_id());
         runtime::call_contract(
             AuctionData::get_nft_hash(),
-            "transfer_token",
+            "transfer",
             runtime_args! {
               "sender" => auction_key,
               "recipient" => recipient,
-              "token_id" => AuctionData::get_token_id(),
+              "token_ids" => token_ids,
             },
         )
     }

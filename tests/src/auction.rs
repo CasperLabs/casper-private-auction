@@ -66,7 +66,7 @@ impl AuctionContract {
     pub fn nft_deploy_and_mint(token_id: &str) -> nft::CasperCEP47Contract {
         let mut cep47 = nft::CasperCEP47Contract::deploy();
         let token_meta = nft::meta::red_dragon();
-        cep47.mint_one(
+        cep47.mint(
             &Key::Account(cep47.admin),
             Some(&token_id.to_string()),
             &token_meta,

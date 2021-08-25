@@ -107,13 +107,16 @@ pub extern "C" fn call() {
     );
     // Transfer the NFT ownership to the auction
 
+    let mut token_ids = alloc::vec::Vec::new();
+    token_ids.push(runtime::get_named_arg::<String>(data::TOKEN_ID));
+
     runtime::call_contract(
         token_contract_hash,
-        "transfer_token",
+        "transfer",
         runtime_args! {
           "sender" => Key::Account(runtime::get_caller()),
           "recipient" => runtime::get_key(data::AUCTION_CONTRACT_HASH).unwrap_or_revert(),
-          "token_id" => runtime::get_named_arg::<String>(data::TOKEN_ID),
+          "token_ids" => token_ids,
         },
     )
 }
