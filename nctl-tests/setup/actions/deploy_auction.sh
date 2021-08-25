@@ -1,11 +1,5 @@
 #!/bin/bash
 
-CWD=$(pwd)
-parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
-cd "$parent_path"
-. ../misc/client_put_deploy_config.sh
-cd $CWD
-
 SELLER_ACCOUNT_ARG=$1
 TOKEN_CONTRACT_HASH_ARG=$2
 TOKEN_ID_ARG=$3
@@ -37,7 +31,26 @@ AUCTION_INSTALL_DEPLOY=$(casper-client put-deploy\
   | jq .result.deploy_hash\
   | tr -d '"')
 
+sleep 90
+
 STATE=$(casper-client get-state-root-hash\
   --node-address $NODE_1_ADDRESS\
   | jq .result.state_root_hash\
   | tr -d '"')
+
+AUCTION_PACKAGE_HASH=$(casper-client query-state\
+  --state-root-hash $STATE\
+  --key $SELLER_KEY\
+  --node-address $NODE_1_ADDRESS\
+  | jq '.result.stored_value.Account.named_keys[] | select(.name == "auction_contract_package_hash") | .key'\
+  | tr -d '"')
+
+AUCTION_CONTRACT_HASH=$(casper-client query-state\
+  --state-root-hash $STATE\
+  --key $AUCTION_PACKAGE_HASH\
+  --node-address $NODE_1_ADDRESS\
+  | jq .result.stored_value.ContractPackage.versions[0].contract_hash\
+  | sed 's/contract/hash/'\
+  | tr -d '"')
+
+echo "Installed auction contract with $AUCTION_CONTRACT_HASH"
