@@ -24,7 +24,7 @@ Scripts to deploy NFT contracts and auctions.
 
 `nctl-tests/setup/misc` 
 
-Contains the variable setup script `client_put_deploy_config.sh`, invoked in every other script to guarantee that a certain set of required variables is correctly set.
+Contains the variable setup script `client_put_deploy_config.sh`, invoked in other scripts to guarantee that a certain required variables are correctly set.
 
 `nctl-tests/operation`
 
@@ -33,3 +33,12 @@ Scripts allowing one line interactions with a deployed auction by any of the 5 u
 `nctl-tests/scenarios`
 
 Complex end-to-end testing scenario scripts, deploying NFT contract, auction contract and conducting bidding/finalization.
+
+Typical operation
+-------------------
+
+Change directory to `nctl-tests` and invoke 
+
+`. setup/seller_token_setup.sh <token ID>`
+ 
+then the desired scenario in `nctl-tests/scenarios`

@@ -1,24 +1,6 @@
-RESULT=$(casper-client put-deploy\
-  --chain-name $NETWORK_NAME\
-  --node-address $NODE_1_ADDRESS\
-  --secret-key $USER_1_SECRET_KEY\
-  --payment-amount $GAS_LIMIT\
-  --session-hash hash-4ab94e0472eeabde179b881e570f77458eb726916f8f04afecacd927c7fe9dba\
-  --session-entry-point "bid"\
-  --session-arg "bid:u512='666'"\
-  --session-arg "bid_purse:uref='$SELLER_PURSE'"\
-  | jq .result.deploy_hash\
-  | tr -d '"')
 
-RESULT=$(casper-client put-deploy\
-  --chain-name $NETWORK_NAME\
-  --node-address $NODE_1_ADDRESS\
-  --secret-key $USER_1_SECRET_KEY\
-  --payment-amount $GAS_LIMIT\
-  --session-hash hash-020b4ca13873dfebd683248cb484044a5559f33a44393487d9ddfb74ad7cd6a0\
-  --session-entry-point "finalize"\
-  | jq .result.deploy_hash\
-  | tr -d '"')
+
+
 
 RESULT_2_BID=$(casper-client put-deploy\
   --chain-name $NETWORK_NAME\
@@ -56,15 +38,7 @@ RESULT_4_BID=$(casper-client put-deploy\
   | jq .result.deploy_hash\
   | tr -d '"')
 
-RESULT_4_CANCEL=$(casper-client put-deploy\
-  --chain-name $NETWORK_NAME\
-  --node-address $NODE_1_ADDRESS\
-  --secret-key $USER_4_SECRET_KEY\
-  --payment-amount $GAS_LIMIT\
-  --session-hash hash-020b4ca13873dfebd683248cb484044a5559f33a44393487d9ddfb74ad7cd6a0\
-  --session-entry-point "cancel_bid"\
-  | jq .result.deploy_hash\
-  | tr -d '"')
+
 
 RESULT_3_CANCEL=$(casper-client put-deploy\
   --chain-name $NETWORK_NAME\
@@ -87,3 +61,17 @@ RESULT=$(casper-client put-deploy\
   --session-arg "bid_purse:uref='$SELLER_PURSE'"\
   | jq .result.deploy_hash\
   | tr -d '"')
+
+
+DRAGONS_MINT_DEPLOY=$(casper-client put-deploy\
+        --chain-name $NETWORK_NAME\
+        --node-address $NODE_1_ADDRESS\
+        --secret-key $USER_1_SECRET_KEY\
+        --payment-amount $GAS_LIMIT\
+        --session-hash $TOKEN_CONTRACT_HASH\
+        --session-entry-point "mint_one"\
+        --session-arg "recipient:key='$SELLER_KEY'"\
+        --session-arg "token_id:opt_string='1'"\
+        --session-arg "token_meta:string=''"\
+        | jq .result.deploy_hash\
+        | tr -d '"')
