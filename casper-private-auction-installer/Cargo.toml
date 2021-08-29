@@ -1,6 +1,6 @@
 [package]
 name = "casper-private-auction-installer"
-version = "0.1.0"
+version = "0.2.1"
 authors = ["Alexander Limonov <alimonov@casperlabs.io>"]
 edition = "2018"
 
