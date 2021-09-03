@@ -47,10 +47,10 @@ DRAGONS_MINT_DEPLOY=$(casper-client put-deploy\
         --secret-key $USER_1_SECRET_KEY\
         --payment-amount $GAS_LIMIT\
         --session-hash $TOKEN_CONTRACT_HASH\
-        --session-entry-point "mint_one"\
+        --session-entry-point "mint"\
         --session-arg "recipient:key='$SELLER_KEY'"\
-        --session-arg "token_id:opt_string='$TOKEN_ID'"\
-        --session-arg "token_meta:string=''"\
+        --session-arg "token_ids:opt_string=null"\
+        --session-arg "token_metas:string=''"\
         | jq .result.deploy_hash\
         | tr -d '"')
 
