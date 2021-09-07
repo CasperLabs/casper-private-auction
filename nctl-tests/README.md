@@ -10,6 +10,7 @@ Assumptions
 - user 1 with sufficient tokens (normally the case!)
 - users 1-5 available
 - user 1 always acts as the seller
+- `rust-script` installed
 
 Directory structure
 -------------------
@@ -42,3 +43,5 @@ Change directory to `nctl-tests` and invoke
 `. setup/seller_token_setup.sh <token ID>`
  
 then the desired scenario in `nctl-tests/scenarios`
+
+Currently, it is recommended to run the setup script before each of the scenarios.

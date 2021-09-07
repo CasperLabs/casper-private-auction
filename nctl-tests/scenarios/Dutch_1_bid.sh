@@ -36,3 +36,13 @@ STATE=$(casper-client get-state-root-hash\
   --node-address $NODE_1_ADDRESS\
   | jq .result.state_root_hash\
   | tr -d '"')
+
+TRANSFERRED_TOKEN_INDEX=$(rust-script setup/misc/encode_owner_token.rs $BUYER_2_KEY 0 | tail -1)
+
+echo "Ownership status for $TOKEN_ID, expected to be found in the return below:"
+casper-client get-dictionary-item\
+  --node-address $NODE_1_ADDRESS\
+  --state-root-hash $STATE\
+  --seed-uref $OWNED_TOKENS_DICT\
+  --dictionary-item-key $TRANSFERRED_TOKEN_INDEX\
+  | jq

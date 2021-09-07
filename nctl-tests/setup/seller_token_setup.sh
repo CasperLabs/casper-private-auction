@@ -12,25 +12,29 @@ SELLER_KEY=$(nctl-view-user-account user=1\
 SELLER_PURSE=$(nctl-view-user-account user=1\
   | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
 
+BUYER_2_KEY=$(nctl-view-user-account user=2\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+
 BUYER_2_PURSE=$(nctl-view-user-account user=2\
   | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+
+BUYER_3_KEY=$(nctl-view-user-account user=3\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
 
 BUYER_3_PURSE=$(nctl-view-user-account user=3\
   | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
 
+BUYER_4_KEY=$(nctl-view-user-account user=4\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+
 BUYER_4_PURSE=$(nctl-view-user-account user=4\
   | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
 
+BUYER_5_KEY=$(nctl-view-user-account user=5\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+
 BUYER_5_PURSE=$(nctl-view-user-account user=5\
   | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
-
-# Requires user argument
-if [[ $1 == "" ]]; then
-  echo "ERROR: No token ID supplied, aborting"
-  return 1
-fi
-
-TOKEN_ID=$1
 
 . setup/actions/deploy_nft.sh
 
@@ -60,3 +64,22 @@ STATE=$(casper-client get-state-root-hash\
   --node-address $NODE_1_ADDRESS\
   | jq .result.state_root_hash\
   | tr -d '"')
+
+OWNED_TOKENS_DICT=$(casper-client query-state\
+  --node-address $NODE_1_ADDRESS\
+  --state-root-hash $STATE\
+  --key $TOKEN_CONTRACT_HASH\
+  | jq '.result.stored_value.Contract.named_keys[] | select(.name == "owned_tokens_by_index") | .key'\
+  | tr -d '"')
+
+TOKEN_INDEX=$(rust-script setup/misc/encode_owner_token.rs $SELLER_KEY 0 | tail -1)
+
+TOKEN_ID=$(casper-client get-dictionary-item\
+  --node-address $NODE_1_ADDRESS\
+  --state-root-hash $STATE\
+  --seed-uref $OWNED_TOKENS_DICT\
+  --dictionary-item-key $TOKEN_INDEX\
+  | jq .result.stored_value.CLValue.parsed\
+  | tr -d '"')
+
+echo "Minted token $TOKEN_ID"
