@@ -11,6 +11,7 @@ use casper_types::{
 };
 
 use crate::{
+    bids::Bids,
     error::AuctionError,
     events::{emit, AuctionEvent},
 };
@@ -106,12 +107,8 @@ impl AuctionData {
         read_named_key_value::<bool>(ENGLISH_FORMAT)
     }
 
-    pub fn get_bids() -> BTreeMap<AccountHash, U512> {
-        read_named_key_value::<BTreeMap<AccountHash, U512>>(BIDS)
-    }
-
-    pub fn update_bids(bids: BTreeMap<AccountHash, U512>) {
-        write_named_key_value(BIDS, bids);
+    pub fn get_bids() -> Bids {
+        Bids::at()
     }
 
     pub fn is_finalized() -> bool {

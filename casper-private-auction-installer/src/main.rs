@@ -10,7 +10,7 @@ use casper_contract::{
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
-use casper_private_auction_core::{auction::Auction, data, AuctionLogic};
+use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
 use casper_types::{
     runtime_args, CLType, ContractHash, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints,
     Key, Parameter, RuntimeArgs,
@@ -32,10 +32,11 @@ pub extern "C" fn finalize() {
 }
 
 #[no_mangle]
-pub extern "C" fn add_auction_purse() {
+pub extern "C" fn init() {
     if runtime::get_key(data::AUCTION_PURSE).is_none() {
         let purse = system::create_purse();
         runtime::put_key(data::AUCTION_PURSE, purse.into());
+        Bids::init();
     }
 }
 
@@ -70,7 +71,7 @@ pub fn get_entry_points() -> EntryPoints {
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
-        "add_auction_purse",
+        "init",
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -97,7 +98,7 @@ pub extern "C" fn call() {
         storage::new_uref(auction_hash).into(),
     );
     // Create purse in the contract's context
-    runtime::call_contract::<()>(auction_hash, "add_auction_purse", runtime_args! {});
+    runtime::call_contract::<()>(auction_hash, "init", runtime_args! {});
 
     // Hash of the NFT contract put up for auction
     let token_contract_hash = ContractHash::new(

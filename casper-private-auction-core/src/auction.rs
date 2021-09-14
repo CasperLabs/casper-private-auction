@@ -1,4 +1,3 @@
-use alloc::collections::BTreeMap;
 use casper_contract::{
     contract_api::{
         runtime::{self},
@@ -30,7 +29,7 @@ impl Auction {
         let mut bids = AuctionData::get_bids();
         let auction_purse = AuctionData::get_auction_purse();
         let bid_amount = if let Some(current_bid) = bids.get(&bidder) {
-            if &bid <= current_bid {
+            if bid <= current_bid {
                 runtime::revert(AuctionError::BidTooLow)
             }
             bid - current_bid
@@ -39,15 +38,14 @@ impl Auction {
         };
         system::transfer_from_purse_to_purse(bidder_purse, auction_purse, bid_amount, None)
             .unwrap_or_revert();
-        bids.insert(bidder, bid);
-        AuctionData::update_bids(bids);
+        bids.replace(&bidder, bid);
     }
 
     fn find_new_winner() -> Option<(AccountHash, U512)> {
         let bids = AuctionData::get_bids();
-        let winning_pair = bids.iter().max_by_key(|p| p.1);
+        let winning_pair = bids.max_by_key();
         match winning_pair {
-            Some((key, bid)) => Some((*key, *bid)),
+            Some((key, bid)) => Some((key, bid)),
             _ => None,
         }
     }
@@ -97,13 +95,13 @@ impl crate::AuctionLogic for Auction {
     }
 
     fn auction_transfer(winner: Option<AccountHash>) {
-        fn return_bids(mut bids: BTreeMap<AccountHash, U512>, auction_purse: URef) {
-            for (bidder, bid) in &bids {
+        fn return_bids(auction_purse: URef) {
+            let mut bids = AuctionData::get_bids();
+            for (bidder, bid) in &bids.to_map() {
                 system::transfer_from_purse_to_account(auction_purse, *bidder, *bid, None)
                     .unwrap_or_revert();
             }
             bids.clear();
-            AuctionData::update_bids(bids);
         }
         let auction_purse = AuctionData::get_auction_purse();
         match winner {
@@ -114,20 +112,19 @@ impl crate::AuctionLogic for Auction {
                         system::transfer_from_purse_to_account(
                             auction_purse,
                             AuctionData::get_beneficiary(),
-                            *bid,
+                            bid,
                             None,
                         )
                         .unwrap_or_revert();
-                        bids.remove(&key);
-                        return_bids(bids, auction_purse);
+                        bids.remove_by_key(&key);
+                        return_bids(auction_purse);
                     }
                     // Something went wrong, so better return everyone's money
-                    _ => return_bids(bids, auction_purse),
+                    _ => return_bids(auction_purse),
                 }
             }
             _ => {
-                let bids = AuctionData::get_bids();
-                return_bids(bids, auction_purse);
+                return_bids(auction_purse);
             }
         }
     }
@@ -175,17 +172,17 @@ impl crate::AuctionLogic for Auction {
 
         if u64::from(runtime::get_blocktime()) < AuctionData::get_cancel_time() {
             let mut bids = AuctionData::get_bids();
+
             match bids.get(&bidder) {
                 Some(current_bid) => {
                     system::transfer_from_purse_to_account(
                         AuctionData::get_auction_purse(),
                         bidder,
-                        *current_bid,
+                        current_bid,
                         None,
                     )
                     .unwrap_or_revert();
-                    bids.remove(&bidder);
-                    AuctionData::update_bids(bids);
+                    bids.remove_by_key(&bidder);
                     match Self::find_new_winner() {
                         Some((winner, bid)) => AuctionData::set_winner(Some(winner), Some(bid)),
                         _ => AuctionData::set_winner(None, None),

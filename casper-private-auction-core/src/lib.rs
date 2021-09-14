@@ -16,7 +16,9 @@ pub mod auction;
 pub mod error;
 #[macro_use]
 pub mod data;
+pub mod bids;
 pub mod events;
+
 pub trait AuctionLogic {
     fn auction_bid();
     fn auction_cancel_bid();
