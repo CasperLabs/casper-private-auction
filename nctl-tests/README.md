@@ -6,7 +6,9 @@ operation of private NFT auctions on a running NCTL network.
 
 Assumptions
 -----------
-- running NCTL network
+- All repos under ~/CasperLabs
+- External repo expected: CaskNFT
+- running NCTL network with casper-node version 1.3.1 or later
 - user 1 with sufficient tokens (normally the case!)
 - users 1-5 available
 - user 1 always acts as the seller

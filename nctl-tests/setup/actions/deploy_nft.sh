@@ -9,6 +9,7 @@ NFT_INSTALL_DEPLOY=$(casper-client put-deploy\
   --session-arg "name:string='Dragon'"\
   --session-arg "symbol:string='DRG'"\
   --session-arg "meta:string=''"\
-  --session-arg "contract_name:string='AuctionTestToken'"\
+  --session-arg "admin:key='$SELLER_KEY'"\
+  --session-arg "contract_name:string='TestCaskNFT'"\
   | jq .result.deploy_hash\
   | tr -d '"')

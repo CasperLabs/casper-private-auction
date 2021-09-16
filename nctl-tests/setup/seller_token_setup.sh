@@ -55,6 +55,9 @@ DRAGONS_MINT_DEPLOY=$(casper-client put-deploy\
         --session-arg "recipient:key='$SELLER_KEY'"\
         --session-arg "token_ids:opt_string=null"\
         --session-arg "token_metas:string=''"\
+        --session-arg "token_gauges:string=''"\
+        --session-arg "token_warehouses:string=''"\
+        --session-arg "token_commissions:string=''"\
         | jq .result.deploy_hash\
         | tr -d '"')
 
