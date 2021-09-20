@@ -82,11 +82,12 @@ impl CasperCEP47Contract {
             .with_public_key(ali.clone(), U512::from(500_000_000_000_000_000u64))
             .with_public_key(bob.clone(), U512::from(500_000_000_000_000_000u64))
             .build();
-        let session_code = Code::from("cep47-token.wasm");
+        let session_code = Code::from("cask-token.wasm");
         let session_args = runtime_args! {
             "name" => token_cfg::NAME,
             "symbol" => token_cfg::SYMBOL,
             "meta" => token_cfg::contract_meta(),
+            "admin" => Key::Account(admin.to_account_hash()),
             "contract_name" => "NFT".to_string()
         };
         let session = SessionBuilder::new(session_code, session_args)
@@ -173,17 +174,25 @@ impl CasperCEP47Contract {
     pub fn mint(
         &mut self,
         recipient: &Key,
-        token_id: Option<&TokenId>,
+        token_id: &str,
         token_meta: &Meta,
         sender: &AccountHash,
+        comissions : BTreeMap<String, String>,
     ) {
+        let mut gauge: BTreeMap<String, String> = BTreeMap::new();
+        gauge.insert("gauge".to_string(), "is_gaugy".to_string());
+        let mut warehouse: BTreeMap<String, String> = BTreeMap::new();
+        warehouse.insert("ware".to_string(), "house".to_string());
         self.call(
             sender,
             "mint",
             runtime_args! {
                 "recipient" => *recipient,
-                "token_ids" => Some(vec![token_id.unwrap().to_owned()]),
-                "token_metas" => vec![token_meta.clone()]
+                "token_ids" => Some(vec![token_id.to_string()]),
+                "token_metas" => vec![token_meta.clone()],
+                "token_gauges" => vec![gauge],
+                "token_warehouses" => vec![warehouse],
+                "token_commissions" => vec![comissions],
             },
         );
     }

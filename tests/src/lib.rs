@@ -1,5 +1,5 @@
 #![allow(unused)]
-use std::time::Duration;
+use std::{collections::BTreeMap, time::Duration};
 
 use casper_contract::contract_api::runtime;
 use casper_engine_test_support::{
@@ -177,11 +177,13 @@ fn auction_unknown_format_test() {
     let mut cep47 = nft::CasperCEP47Contract::deploy();
     let token_id = String::from("custom_token_id");
     let token_meta = nft::meta::red_dragon();
+    let mut comissions = BTreeMap::new(); 
     cep47.mint(
         &Key::Account(cep47.admin),
-        Some(&token_id),
+        &token_id,
         &token_meta,
         &(cep47.admin.clone()),
+        comissions
     );
 
     let nft::CasperCEP47Contract {
@@ -218,11 +220,13 @@ fn auction_bad_times_test() {
     let mut cep47 = nft::CasperCEP47Contract::deploy();
     let token_id = String::from("custom_token_id");
     let token_meta = nft::meta::red_dragon();
+    let mut comissions = BTreeMap::new(); 
     cep47.mint(
         &Key::Account(cep47.admin),
-        Some(&token_id),
+        &token_id,
         &token_meta,
         &(cep47.admin.clone()),
+        comissions
     );
 
     let nft::CasperCEP47Contract {

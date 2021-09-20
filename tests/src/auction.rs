@@ -21,13 +21,14 @@ pub struct AuctionContract {
 impl AuctionContract {
     pub fn deploy_with_default_args(english: bool, start_time: u64) -> Self {
         let token_id = String::from("custom_token_id");
+        let mut comissions = BTreeMap::new(); 
         let nft::CasperCEP47Contract {
             mut context,
             hash,
             admin,
             ali,
             bob,
-        } = Self::nft_deploy_and_mint(&token_id);
+        } = Self::nft_deploy_and_mint(&token_id, comissions);
         let auction_args =
             AuctionArgsBuilder::new_with_necessary(&admin, &hash, &token_id, english, start_time);
         Self::deploy_auction(
@@ -42,13 +43,14 @@ impl AuctionContract {
 
     pub fn deploy(mut auction_args: AuctionArgsBuilder) -> Self {
         let token_id = String::from("custom_token_id");
+        let mut comissions = BTreeMap::new(); 
         let nft::CasperCEP47Contract {
             mut context,
             hash,
             admin,
             ali,
             bob,
-        } = Self::nft_deploy_and_mint(&token_id);
+        } = Self::nft_deploy_and_mint(&token_id, comissions);
         auction_args.set_beneficiary(&admin);
         auction_args.set_token_contract_hash(&hash);
         auction_args.set_token_id(&token_id);
@@ -63,14 +65,15 @@ impl AuctionContract {
         )
     }
 
-    pub fn nft_deploy_and_mint(token_id: &str) -> nft::CasperCEP47Contract {
+    pub fn nft_deploy_and_mint(token_id: &str, comissions : BTreeMap<String, String>) -> nft::CasperCEP47Contract {
         let mut cep47 = nft::CasperCEP47Contract::deploy();
         let token_meta = nft::meta::red_dragon();
         cep47.mint(
             &Key::Account(cep47.admin),
-            Some(&token_id.to_string()),
+            token_id,
             &token_meta,
             &(cep47.admin.clone()),
+            comissions
         );
         cep47
     }
