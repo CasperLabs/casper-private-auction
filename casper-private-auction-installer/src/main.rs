@@ -12,8 +12,8 @@ use casper_contract::{
 };
 use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
 use casper_types::{
-    runtime_args, CLType, ContractHash, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints,
-    Key, Parameter, RuntimeArgs,
+    runtime_args, CLType, ContractPackageHash, EntryPoint, EntryPointAccess,
+    EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
 };
 
 #[no_mangle]
@@ -101,7 +101,7 @@ pub extern "C" fn call() {
     runtime::call_contract::<()>(auction_hash, "init", runtime_args! {});
 
     // Hash of the NFT contract put up for auction
-    let token_contract_hash = ContractHash::new(
+    let token_contract_hash = ContractPackageHash::new(
         runtime::get_named_arg::<Key>(data::NFT_HASH)
             .into_hash()
             .unwrap_or_revert(),
@@ -111,8 +111,9 @@ pub extern "C" fn call() {
     let mut token_ids = alloc::vec::Vec::new();
     token_ids.push(runtime::get_named_arg::<String>(data::TOKEN_ID));
 
-    runtime::call_contract(
+    runtime::call_versioned_contract(
         token_contract_hash,
+        None,
         "transfer",
         runtime_args! {
           "sender" => Key::Account(runtime::get_caller()),

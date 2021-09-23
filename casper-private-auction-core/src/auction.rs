@@ -74,8 +74,9 @@ impl Auction {
         };
         let mut token_ids = alloc::vec::Vec::new();
         token_ids.push(AuctionData::get_token_id());
-        runtime::call_contract(
+        runtime::call_versioned_contract(
             AuctionData::get_nft_hash(),
+            None,
             "transfer",
             runtime_args! {
               "sender" => auction_key,
@@ -94,6 +95,7 @@ impl crate::AuctionLogic for Auction {
         }
     }
 
+    //TODO: comissions
     fn auction_transfer(winner: Option<AccountHash>) {
         fn return_bids(auction_purse: URef) {
             let mut bids = AuctionData::get_bids();
