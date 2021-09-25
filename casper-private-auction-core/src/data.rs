@@ -16,7 +16,8 @@ use crate::{
     events::{emit, AuctionEvent},
 };
 use alloc::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
+    format,
     string::{String, ToString},
 };
 use casper_types::{account::AccountHash, contracts::NamedKeys, Key, U512};
@@ -221,12 +222,43 @@ impl AuctionData {
         read_named_key_value(COMISSIONS)
     }
 
-    pub fn get_comission_shares() -> () {
+    pub fn get_comission_shares() -> BTreeMap<AccountHash, u16> {
         let comissions = Self::get_comissions();
-        let artist_account = comissions.get("artist_account").unwrap_or_revert();
-        let artist_rate = comissions.get("artist_rate").unwrap_or_revert();
-        let broker_account = comissions.get("broker_account").unwrap_or_revert();
-        let broker_rate = comissions.get("broker_rate").unwrap_or_revert();
+        let mut converted_comissions: BTreeMap<AccountHash, u16> = BTreeMap::new();
+        let mut done: BTreeSet<String> = BTreeSet::new();
+        let mut share_sum = 0;
+        for (key, value) in &comissions {
+            let mut split = key.split('_');
+            let actor = split.next().unwrap_or_revert();
+            if done.contains(actor) {
+                continue;
+            }
+            let proterty = split.next().unwrap_or_revert();
+            match proterty {
+                "account" => {
+                    let rate = comissions
+                        .get(&format!("{}_rate", actor))
+                        .unwrap_or_revert();
+                    let share_rate = string_to_u16(rate);
+                    share_sum += share_rate;
+                    converted_comissions.insert(string_to_account_hash(value), share_rate);
+                }
+                "rate" => {
+                    let account = comissions
+                        .get(&format!("{}_account", actor))
+                        .unwrap_or_revert();
+                    let share_rate = string_to_u16(value);
+                    share_sum += share_rate;
+                    converted_comissions.insert(string_to_account_hash(account), share_rate);
+                }
+                _ => revert(AuctionError::InvalidComissionProperty),
+            }
+            done.insert(actor.to_string());
+        }
+        if share_sum > 1000 {
+            revert(AuctionError::ComissionTooManyShares)
+        }
+        converted_comissions
     }
 
     pub fn get_kyc_hash() -> ContractPackageHash {
@@ -241,7 +273,7 @@ impl AuctionData {
         */
         runtime::get_caller();
         runtime::call_versioned_contract::<bool>(
-            ContractPackageHash::from(Self::get_kyc_hash()),
+            Self::get_kyc_hash(),
             None,
             "is_kyc_proved",
             runtime_args! {
@@ -357,4 +389,23 @@ fn add_empty_dict(named_keys: &mut NamedKeys, name: &str) {
     let dict = new_dictionary(name).unwrap_or_revert();
     runtime::remove_key(name);
     named_keys.insert(name.to_string(), dict.into());
+}
+
+fn string_to_account_hash(account_string: &str) -> AccountHash {
+    let account = if account_string.starts_with("account-hash-") {
+        AccountHash::from_formatted_str(account_string)
+    } else {
+        AccountHash::from_formatted_str(&format!("account-hash-{}", account_string))
+    };
+    match account {
+        Ok(acc) => acc,
+        Err(_e) => revert(AuctionError::ComissionAccountIncorrectSerialization),
+    }
+}
+
+fn string_to_u16(ustr: &str) -> u16 {
+    match ustr.parse::<u16>() {
+        Ok(u) => u,
+        Err(_e) => revert(AuctionError::ComissionRateIncorrectSerialization),
+    }
 }

@@ -84,9 +84,9 @@ impl CasperCEP47Contract {
         let bob: PublicKey = (&bob_secret).into();
         let bob_hash = bob.to_account_hash();
         let mut context = TestContextBuilder::new()
-            .with_public_key(admin.clone(), U512::from(500_000_000_000_000_000u64))
-            .with_public_key(ali.clone(), U512::from(500_000_000_000_000_000u64))
-            .with_public_key(bob.clone(), U512::from(500_000_000_000_000_000u64))
+            .with_public_key(admin, U512::from(500_000_000_000_000_000u64))
+            .with_public_key(ali, U512::from(500_000_000_000_000_000u64))
+            .with_public_key(bob, U512::from(500_000_000_000_000_000u64))
             .build();
         let session_code = Code::from("cask-token.wasm");
         let session_args = runtime_args! {
@@ -148,8 +148,8 @@ impl CasperCEP47Contract {
             kyc_hash,
             kyc_package_hash,
             admin: admin_hash,
-            ali: ali.to_account_hash(),
-            bob: bob.to_account_hash(),
+            ali: ali_hash,
+            bob: bob_hash,
         }
     }
 

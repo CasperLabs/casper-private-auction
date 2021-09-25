@@ -12,8 +12,8 @@ use casper_contract::{
 };
 use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
 use casper_types::{
-    runtime_args, CLType, ContractPackageHash, EntryPoint, EntryPointAccess,
-    EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
+    runtime_args, CLType, ContractPackageHash, EntryPoint, EntryPointAccess, EntryPointType,
+    EntryPoints, Key, Parameter, RuntimeArgs,
 };
 
 #[no_mangle]

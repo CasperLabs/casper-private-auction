@@ -15,6 +15,10 @@ pub enum AuctionError {
     EarlyBid = 11,
     InvalidBeneficiary = 12,
     BadKey = 13,
+    InvalidComissionProperty = 14,
+    ComissionAccountIncorrectSerialization = 15,
+    ComissionRateIncorrectSerialization = 16,
+    ComissionTooManyShares = 17,
 }
 
 impl From<AuctionError> for ApiError {
