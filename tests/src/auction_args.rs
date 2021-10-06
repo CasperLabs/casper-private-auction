@@ -2,32 +2,6 @@ use casper_engine_test_support::Hash;
 use casper_engine_test_support::{Account, AccountHash};
 use casper_types::{runtime_args, Key, PublicKey, RuntimeArgs, SecretKey, U512};
 
-/*
-  --session-arg "beneficiary_account    :   key         ='$SELLER_ACCOUNT_ARG'"\
-  --session-arg "token_contract_hash    :   key         ='$TOKEN_CONTRACT_HASH_ARG'"\
-  --session-arg "format                 :   string      ='$FORMAT'"\
-  --session-arg "starting_price         :   opt_u512    =$STARTING_PRICE"\
-  --session-arg "reserve_price          :   u512        ='$RESERVE_PRICE'"\
-  --session-arg "token_id               :   string      ='$TOKEN_ID_ARG'"\
-  --session-arg "start_time             :   u64         ='$START_TIME'"\
-  --session-arg "cancellation_time      :   u64         ='$CANCEL_TIME'"\
-  --session-arg "end_time               :   u64         ='$END_TIME'"\
-*/
-
-/*
-    runtime_args! {
-        "beneficiary_account"=>Key::Account(*beneficiary),
-        "token_contract_hash"=>Key::Hash(*nft),
-        "format"=>if english{"ENGLISH"}else{"DUTCH"},
-        "starting_price"=>if english{None}else{Some(U512::from(1000))},
-        "reserve_price"=>U512::from(1000),
-        "token_id"=>token_id,
-        "start_time" => now + 500,
-        "cancellation_time" => now + 3000,
-        "end_time" => now + 3500,
-    }
-*/
-
 #[derive(Debug)]
 pub struct AuctionArgsBuilder {
     // into Key

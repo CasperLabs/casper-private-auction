@@ -95,7 +95,6 @@ impl crate::AuctionLogic for Auction {
         }
     }
 
-    //TODO: comissions
     fn auction_transfer(winner: Option<AccountHash>) {
         fn return_bids(auction_purse: URef) {
             let mut bids = AuctionData::get_bids();
@@ -114,7 +113,7 @@ impl crate::AuctionLogic for Auction {
                         // Every actor receives x one-thousandth of the winning bid, the surplus goes to the designated beneficiary account.
                         let share_piece = bid / 1000;
                         let mut given_as_shares = U512::zero();
-                        for (account, share) in AuctionData::get_comission_shares() {
+                        for (account, share) in AuctionData::get_commission_shares() {
                             let actor_share = share_piece * share;
                             system::transfer_from_purse_to_account(
                                 auction_purse,

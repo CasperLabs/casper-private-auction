@@ -237,7 +237,7 @@ impl CasperCEP47Contract {
         token_id: &str,
         token_meta: &Meta,
         sender: &AccountHash,
-        comissions: BTreeMap<String, String>,
+        commissions: BTreeMap<String, String>,
     ) {
         let mut gauge: BTreeMap<String, String> = BTreeMap::new();
         gauge.insert("gauge".to_string(), "is_gaugy".to_string());
@@ -252,7 +252,7 @@ impl CasperCEP47Contract {
                 "token_metas" => vec![token_meta.clone()],
                 "token_gauges" => vec![gauge],
                 "token_warehouses" => vec![warehouse],
-                "token_commissions" => vec![comissions],
+                "token_commissions" => vec![commissions],
             },
         );
     }

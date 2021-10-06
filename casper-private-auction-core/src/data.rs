@@ -46,7 +46,7 @@ pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_package_hash";
 pub const AUCTION_ACCESS_TOKEN: &str = "auction_access_token";
 pub const EVENTS: &str = "auction_events";
 pub const EVENTS_COUNT: &str = "auction_events_count";
-pub const COMISSIONS: &str = "comissions";
+pub const COMMISSIONS: &str = "commissions";
 pub const KYC_HASH: &str = "kyc_package_hash";
 
 macro_rules! named_keys {
@@ -201,64 +201,51 @@ impl AuctionData {
         block_time < end_time && block_time >= start_time
     }
 
-    // pub fn fetch_comissions() -> BTreeMap<String, String> {
-    //     if let Some(Key::Hash(contract_package_hash)) = Self::get_token_contract_hash() {
-    //         let token_id = Self::get_token_id();
-    //         runtime::call_versioned_contract(
-    //             ContractPackageHash::from(contract_package_hash),
-    //             None,
-    //             "token_commission",
-    //             runtime_args! {"token_id" => token_id},
-    //         )
-    //     }
-    //     revert(AuctionError::BadState)
-    // }
-
-    pub fn set_comissions(comissions: BTreeMap<String, String>) {
-        write_named_key_value(COMISSIONS, comissions);
+    pub fn set_commissions(commissions: BTreeMap<String, String>) {
+        write_named_key_value(COMMISSIONS, commissions);
     }
 
-    pub fn get_comissions() -> BTreeMap<String, String> {
-        read_named_key_value(COMISSIONS)
+    pub fn get_commissions() -> BTreeMap<String, String> {
+        read_named_key_value(COMMISSIONS)
     }
 
-    pub fn get_comission_shares() -> BTreeMap<AccountHash, u16> {
-        let comissions = Self::get_comissions();
-        let mut converted_comissions: BTreeMap<AccountHash, u16> = BTreeMap::new();
+    pub fn get_commission_shares() -> BTreeMap<AccountHash, u16> {
+        let commissions = Self::get_commissions();
+        let mut converted_commissions: BTreeMap<AccountHash, u16> = BTreeMap::new();
         let mut done: BTreeSet<String> = BTreeSet::new();
         let mut share_sum = 0;
-        for (key, value) in &comissions {
+        for (key, value) in &commissions {
             let mut split = key.split('_');
             let actor = split.next().unwrap_or_revert();
             if done.contains(actor) {
                 continue;
             }
-            let proterty = split.next().unwrap_or_revert();
-            match proterty {
+            let property = split.next().unwrap_or_revert();
+            match property {
                 "account" => {
-                    let rate = comissions
+                    let rate = commissions
                         .get(&format!("{}_rate", actor))
                         .unwrap_or_revert();
                     let share_rate = string_to_u16(rate);
                     share_sum += share_rate;
-                    converted_comissions.insert(string_to_account_hash(value), share_rate);
+                    converted_commissions.insert(string_to_account_hash(value), share_rate);
                 }
                 "rate" => {
-                    let account = comissions
+                    let account = commissions
                         .get(&format!("{}_account", actor))
                         .unwrap_or_revert();
                     let share_rate = string_to_u16(value);
                     share_sum += share_rate;
-                    converted_comissions.insert(string_to_account_hash(account), share_rate);
+                    converted_commissions.insert(string_to_account_hash(account), share_rate);
                 }
-                _ => revert(AuctionError::InvalidComissionProperty),
+                _ => revert(AuctionError::InvalidcommissionProperty),
             }
             done.insert(actor.to_string());
         }
         if share_sum > 1000 {
-            revert(AuctionError::ComissionTooManyShares)
+            revert(AuctionError::CommissionTooManyShares)
         }
-        converted_comissions
+        converted_commissions
     }
 
     pub fn get_kyc_hash() -> ContractPackageHash {
@@ -266,11 +253,6 @@ impl AuctionData {
     }
 
     pub fn is_kyc_proved() -> bool {
-        /*
-        fn is_kyc_proved() {
-        let account = runtime::get_named_arg::<Key>("account");
-        let index = runtime::get_named_arg::<Option<U256>>("index");
-        */
         runtime::get_caller();
         runtime::call_versioned_contract::<bool>(
             Self::get_kyc_hash(),
@@ -342,9 +324,9 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let bids: BTreeMap<AccountHash, U512> = BTreeMap::new();
     let finalized = false;
 
-    // Get comissions from nft
+    // Get commissions from nft
 
-    let comissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
+    let commissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
         ContractPackageHash::from(token_contract_hash),
         None,
         "token_commission",
@@ -354,7 +336,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
         },
     );
 
-    let comissions = match comissions_ret {
+    let commissions = match commissions_ret {
         Some(com) => com,
         None => BTreeMap::new(),
     };
@@ -376,7 +358,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (BIDS, bids),
         (FINALIZED, finalized),
         (EVENTS_COUNT, 0_u32),
-        (COMISSIONS, comissions)
+        (COMMISSIONS, commissions)
     );
     add_empty_dict(&mut named_keys, EVENTS);
     named_keys
@@ -399,13 +381,13 @@ fn string_to_account_hash(account_string: &str) -> AccountHash {
     };
     match account {
         Ok(acc) => acc,
-        Err(_e) => revert(AuctionError::ComissionAccountIncorrectSerialization),
+        Err(_e) => revert(AuctionError::CommissionAccountIncorrectSerialization),
     }
 }
 
 fn string_to_u16(ustr: &str) -> u16 {
     match ustr.parse::<u16>() {
         Ok(u) => u,
-        Err(_e) => revert(AuctionError::ComissionRateIncorrectSerialization),
+        Err(_e) => revert(AuctionError::CommissionRateIncorrectSerialization),
     }
 }

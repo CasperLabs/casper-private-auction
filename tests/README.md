@@ -1,1 +1,0 @@
-# As of now these tests do not work, since as of yet TestContext always returns a blocktime of zero. Blocktime being an important part of the auctions.

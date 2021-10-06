@@ -21,7 +21,7 @@ pub struct AuctionContract {
 impl AuctionContract {
     pub fn deploy_with_default_args(english: bool, start_time: u64) -> Self {
         let token_id = String::from("custom_token_id");
-        let mut comissions = BTreeMap::new();
+        let mut commissions = BTreeMap::new();
         let nft::CasperCEP47Contract {
             mut context,
             hash,
@@ -31,7 +31,7 @@ impl AuctionContract {
             admin,
             ali,
             bob,
-        } = Self::nft_deploy_and_mint(&token_id, comissions);
+        } = Self::nft_deploy_and_mint(&token_id, commissions);
         let auction_args = AuctionArgsBuilder::new_with_necessary(
             &admin,
             &nft_package,
@@ -52,7 +52,7 @@ impl AuctionContract {
 
     pub fn deploy(mut auction_args: AuctionArgsBuilder) -> Self {
         let token_id = String::from("custom_token_id");
-        let mut comissions = BTreeMap::new();
+        let mut commissions = BTreeMap::new();
         let nft::CasperCEP47Contract {
             mut context,
             hash,
@@ -62,7 +62,7 @@ impl AuctionContract {
             admin,
             ali,
             bob,
-        } = Self::nft_deploy_and_mint(&token_id, comissions);
+        } = Self::nft_deploy_and_mint(&token_id, commissions);
         auction_args.set_beneficiary(&admin);
         auction_args.set_token_contract_hash(&nft_package);
         auction_args.set_kyc_package_hash(&kyc_package_hash);
@@ -80,7 +80,7 @@ impl AuctionContract {
 
     pub fn nft_deploy_and_mint(
         token_id: &str,
-        comissions: BTreeMap<String, String>,
+        commissions: BTreeMap<String, String>,
     ) -> nft::CasperCEP47Contract {
         let mut cep47 = nft::CasperCEP47Contract::deploy();
         let token_meta = nft::meta::red_dragon();
@@ -89,7 +89,7 @@ impl AuctionContract {
             token_id,
             &token_meta,
             &(cep47.admin.clone()),
-            comissions,
+            commissions,
         );
 
         cep47.add_kyc(cep47.ali);
