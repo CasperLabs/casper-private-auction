@@ -177,25 +177,29 @@ fn auction_unknown_format_test() {
     let mut cep47 = nft::CasperCEP47Contract::deploy();
     let token_id = String::from("custom_token_id");
     let token_meta = nft::meta::red_dragon();
-    let mut comissions = BTreeMap::new(); 
+    let mut commissions = BTreeMap::new();
     cep47.mint(
         &Key::Account(cep47.admin),
         &token_id,
         &token_meta,
         &(cep47.admin.clone()),
-        comissions
+        commissions,
     );
 
     let nft::CasperCEP47Contract {
         mut context,
         hash,
+        kyc_hash,
+        kyc_package_hash,
+        nft_package,
         admin,
         ali,
         bob,
     } = cep47;
     let auction_args = runtime_args! {
         "beneficiary_account"=>Key::Account(admin),
-        "token_contract_hash"=>Key::Hash(hash),
+        "token_contract_hash"=>Key::Hash(nft_package),
+        "kyc_package_hash" => Key::Hash(kyc_package_hash),
         "format"=> "WOLOLO",
         "starting_price"=> None::<U512>,
         "reserve_price"=>U512::from(300),
@@ -220,25 +224,28 @@ fn auction_bad_times_test() {
     let mut cep47 = nft::CasperCEP47Contract::deploy();
     let token_id = String::from("custom_token_id");
     let token_meta = nft::meta::red_dragon();
-    let mut comissions = BTreeMap::new(); 
+    let mut commissions = BTreeMap::new();
     cep47.mint(
         &Key::Account(cep47.admin),
         &token_id,
         &token_meta,
         &(cep47.admin.clone()),
-        comissions
+        commissions,
     );
-
     let nft::CasperCEP47Contract {
         mut context,
         hash,
+        kyc_hash,
+        kyc_package_hash,
+        nft_package,
         admin,
         ali,
         bob,
     } = cep47;
     let auction_args = runtime_args! {
         "beneficiary_account"=>Key::Account(admin),
-        "token_contract_hash"=>Key::Hash(hash),
+        "token_contract_hash"=>Key::Hash(nft_package),
+        "kyc_package_hash" => Key::Hash(kyc_package_hash),
         "format"=> "ENGLISH",
         "starting_price"=> None::<U512>,
         "reserve_price"=>U512::from(300),

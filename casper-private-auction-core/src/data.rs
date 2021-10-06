@@ -7,7 +7,7 @@ use casper_contract::{
 };
 use casper_types::{
     bytesrepr::{FromBytes, ToBytes},
-    ApiError, CLTyped, ContractHash, URef,
+    runtime_args, ApiError, CLTyped, ContractPackageHash, RuntimeArgs, URef,
 };
 
 use crate::{
@@ -16,7 +16,8 @@ use crate::{
     events::{emit, AuctionEvent},
 };
 use alloc::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
+    format,
     string::{String, ToString},
 };
 use casper_types::{account::AccountHash, contracts::NamedKeys, Key, U512};
@@ -45,6 +46,8 @@ pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_package_hash";
 pub const AUCTION_ACCESS_TOKEN: &str = "auction_access_token";
 pub const EVENTS: &str = "auction_events";
 pub const EVENTS_COUNT: &str = "auction_events_count";
+pub const COMMISSIONS: &str = "commissions";
+pub const KYC_HASH: &str = "kyc_package_hash";
 
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
@@ -59,9 +62,9 @@ macro_rules! named_keys {
 // TODO: This needs A LOT of error handling because we don't want an auction being left in an unrecoverable state if the named keys are bad!
 pub fn read_named_key_uref(name: &str) -> URef {
     runtime::get_key(name)
-        .unwrap_or_revert_with(ApiError::MissingKey)
+        .unwrap_or_revert_with(ApiError::User(100))
         .into_uref()
-        .unwrap_or_revert_with(ApiError::UnexpectedKeyVariant)
+        .unwrap_or_revert_with(ApiError::User(101))
 }
 
 // TODO: This needs A LOT of error handling because we don't want an auction being left in an unrecoverable state if the named keys are bad!
@@ -69,8 +72,8 @@ pub fn read_named_key_value<T: CLTyped + FromBytes>(name: &str) -> T {
     let uref = read_named_key_uref(name);
 
     storage::read(uref)
-        .unwrap_or_revert_with(ApiError::Read)
-        .unwrap_or_revert_with(ApiError::ValueNotFound)
+        .unwrap_or_revert_with(ApiError::User(102))
+        .unwrap_or_revert_with(ApiError::User(103))
 }
 
 pub fn write_named_key_value<T: CLTyped + ToBytes>(name: &str, value: T) {
@@ -83,8 +86,8 @@ impl AuctionData {
     pub fn get_token_owner() -> Key {
         read_named_key_value::<Key>(OWNER)
     }
-    pub fn get_nft_hash() -> ContractHash {
-        ContractHash::new(
+    pub fn get_nft_hash() -> ContractPackageHash {
+        ContractPackageHash::new(
             read_named_key_value::<Key>(NFT_HASH)
                 .into_hash()
                 .unwrap_or_revert(),
@@ -180,6 +183,10 @@ impl AuctionData {
         read_named_key_value::<Option<U512>>(PRICE)
     }
 
+    pub fn get_token_contract_hash() -> Option<Key> {
+        read_named_key_value::<Option<Key>>(NFT_HASH)
+    }
+
     pub fn is_auction_live() -> bool {
         // Check that it's not too late and that the auction isn't finalized
         let start_time = AuctionData::get_start();
@@ -192,6 +199,71 @@ impl AuctionData {
             runtime::revert(AuctionError::LateBid)
         }
         block_time < end_time && block_time >= start_time
+    }
+
+    pub fn set_commissions(commissions: BTreeMap<String, String>) {
+        write_named_key_value(COMMISSIONS, commissions);
+    }
+
+    pub fn get_commissions() -> BTreeMap<String, String> {
+        read_named_key_value(COMMISSIONS)
+    }
+
+    pub fn get_commission_shares() -> BTreeMap<AccountHash, u16> {
+        let commissions = Self::get_commissions();
+        let mut converted_commissions: BTreeMap<AccountHash, u16> = BTreeMap::new();
+        let mut done: BTreeSet<String> = BTreeSet::new();
+        let mut share_sum = 0;
+        for (key, value) in &commissions {
+            let mut split = key.split('_');
+            let actor = split.next().unwrap_or_revert();
+            if done.contains(actor) {
+                continue;
+            }
+            let property = split.next().unwrap_or_revert();
+            match property {
+                "account" => {
+                    let rate = commissions
+                        .get(&format!("{}_rate", actor))
+                        .unwrap_or_revert();
+                    let share_rate = string_to_u16(rate);
+                    share_sum += share_rate;
+                    converted_commissions.insert(string_to_account_hash(value), share_rate);
+                }
+                "rate" => {
+                    let account = commissions
+                        .get(&format!("{}_account", actor))
+                        .unwrap_or_revert();
+                    let share_rate = string_to_u16(value);
+                    share_sum += share_rate;
+                    converted_commissions.insert(string_to_account_hash(account), share_rate);
+                }
+                _ => revert(AuctionError::InvalidcommissionProperty),
+            }
+            done.insert(actor.to_string());
+        }
+        if share_sum > 1000 {
+            revert(AuctionError::CommissionTooManyShares)
+        }
+        converted_commissions
+    }
+
+    pub fn get_kyc_hash() -> ContractPackageHash {
+        read_named_key_value(KYC_HASH)
+    }
+
+    pub fn is_kyc_proved() -> bool {
+        runtime::get_caller();
+        runtime::call_versioned_contract::<bool>(
+            Self::get_kyc_hash(),
+            None,
+            "is_kyc_proved",
+            runtime_args! {
+                "account" => Key::Account(runtime::get_caller()),
+                "index" => Option::<casper_types::U256>::None
+            },
+        );
+        true
     }
 }
 
@@ -220,11 +292,12 @@ pub fn create_auction_named_keys() -> NamedKeys {
     };
 
     // Get the auction parameters from the command line args
-    let token_contract_hash: Key = Key::Hash(
-        runtime::get_named_arg::<Key>(NFT_HASH)
-            .into_hash()
-            .unwrap_or_default(),
-    );
+    let token_contract_hash: [u8; 32] = runtime::get_named_arg::<Key>(NFT_HASH)
+        .into_hash()
+        .unwrap_or_default();
+    let kyc_contract_hash: [u8; 32] = runtime::get_named_arg::<Key>(KYC_HASH)
+        .into_hash()
+        .unwrap_or_default();
     let english_format = match runtime::get_named_arg::<String>("format").as_str() {
         "ENGLISH" => true,
         "DUTCH" => false,
@@ -242,6 +315,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (true, None, reserver_price) => (None, reserver_price),
         _ => runtime::revert(AuctionError::InvalidPrices),
     };
+
     let token_id = runtime::get_named_arg::<String>(TOKEN_ID);
     let (start_time, cancellation_time, end_time): (u64, u64, u64) = auction_times_match();
     let winning_bid: Option<U512> = None;
@@ -250,10 +324,28 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let bids: BTreeMap<AccountHash, U512> = BTreeMap::new();
     let finalized = false;
 
+    // Get commissions from nft
+
+    let commissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
+        ContractPackageHash::from(token_contract_hash),
+        None,
+        "token_commission",
+        runtime_args! {
+            "token_id" => token_id.clone(),
+            "property" => "".to_string(),
+        },
+    );
+
+    let commissions = match commissions_ret {
+        Some(com) => com,
+        None => BTreeMap::new(),
+    };
+
     let mut named_keys = named_keys!(
         (OWNER, token_owner),
         (BENEFICIARY_ACCOUNT, beneficiary_account),
-        (NFT_HASH, token_contract_hash),
+        (NFT_HASH, Key::Hash(token_contract_hash)),
+        (KYC_HASH, Key::Hash(kyc_contract_hash)),
         (ENGLISH_FORMAT, english_format),
         (TOKEN_ID, token_id),
         (START, start_time),
@@ -265,9 +357,9 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (WINNER, current_winner),
         (BIDS, bids),
         (FINALIZED, finalized),
-        (EVENTS_COUNT, 0_u32)
+        (EVENTS_COUNT, 0_u32),
+        (COMMISSIONS, commissions)
     );
-
     add_empty_dict(&mut named_keys, EVENTS);
     named_keys
 }
@@ -279,4 +371,23 @@ fn add_empty_dict(named_keys: &mut NamedKeys, name: &str) {
     let dict = new_dictionary(name).unwrap_or_revert();
     runtime::remove_key(name);
     named_keys.insert(name.to_string(), dict.into());
+}
+
+fn string_to_account_hash(account_string: &str) -> AccountHash {
+    let account = if account_string.starts_with("account-hash-") {
+        AccountHash::from_formatted_str(account_string)
+    } else {
+        AccountHash::from_formatted_str(&format!("account-hash-{}", account_string))
+    };
+    match account {
+        Ok(acc) => acc,
+        Err(_e) => revert(AuctionError::CommissionAccountIncorrectSerialization),
+    }
+}
+
+fn string_to_u16(ustr: &str) -> u16 {
+    match ustr.parse::<u16>() {
+        Ok(u) => u,
+        Err(_e) => revert(AuctionError::CommissionRateIncorrectSerialization),
+    }
 }

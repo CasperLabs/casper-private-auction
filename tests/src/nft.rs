@@ -60,6 +60,9 @@ const METADATA_DICT: &str = "metadata";
 pub struct CasperCEP47Contract {
     pub context: TestContext,
     pub hash: Hash,
+    pub nft_package: Hash,
+    pub kyc_hash: Hash,
+    pub kyc_package_hash: Hash,
     pub admin: AccountHash,
     pub ali: AccountHash,
     pub bob: AccountHash,
@@ -75,38 +78,95 @@ impl CasperCEP47Contract {
         let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
         let admin: PublicKey = (&admin_secret).into();
+        let admin_hash = admin.to_account_hash();
         let ali: PublicKey = (&ali_secret).into();
+        let ali_hash = ali.to_account_hash();
         let bob: PublicKey = (&bob_secret).into();
+        let bob_hash = bob.to_account_hash();
         let mut context = TestContextBuilder::new()
-            .with_public_key(admin.clone(), U512::from(500_000_000_000_000_000u64))
-            .with_public_key(ali.clone(), U512::from(500_000_000_000_000_000u64))
-            .with_public_key(bob.clone(), U512::from(500_000_000_000_000_000u64))
+            .with_public_key(admin, U512::from(500_000_000_000_000_000u64))
+            .with_public_key(ali, U512::from(500_000_000_000_000_000u64))
+            .with_public_key(bob, U512::from(500_000_000_000_000_000u64))
             .build();
         let session_code = Code::from("cask-token.wasm");
         let session_args = runtime_args! {
             "name" => token_cfg::NAME,
             "symbol" => token_cfg::SYMBOL,
             "meta" => token_cfg::contract_meta(),
-            "admin" => Key::Account(admin.to_account_hash()),
+            "admin" => Key::Account(admin_hash),
             "contract_name" => "NFT".to_string()
         };
         let session = SessionBuilder::new(session_code, session_args)
-            .with_address(admin.to_account_hash())
-            .with_authorization_keys(&[admin.to_account_hash()])
+            .with_address(admin_hash)
+            .with_authorization_keys(&[admin_hash])
             .build();
         context.run(session);
         let hash = context
-            .query(admin.to_account_hash(), &[CONTRACT_HASH_KEY.to_string()])
+            .query(admin_hash, &[CONTRACT_HASH_KEY.to_string()])
+            .unwrap()
+            .into_t()
+            .unwrap();
+
+        let nft_package = context
+            .query(admin_hash, &["NFT_package_hash_wrapped".to_string()])
+            .unwrap()
+            .into_t()
+            .unwrap();
+
+        let kyc_code = Code::from("civic-token.wasm");
+        let mut meta = BTreeMap::new();
+        meta.insert("origin".to_string(), "kyc".to_string());
+
+        let kyc_args = runtime_args! {
+            "name" => "kyc",
+            "contract_name" => "kyc",
+            "symbol" => "symbol",
+            "meta" => meta,
+            "admin" => Key::Account(admin_hash)
+        };
+        let kyc_session = SessionBuilder::new(kyc_code, kyc_args)
+            .with_address(admin_hash)
+            .with_authorization_keys(&[admin_hash])
+            .build();
+
+        context.run(kyc_session);
+        let kyc_hash = context
+            .query(admin_hash, &["kyc_contract_hash_wrapped".to_string()])
+            .unwrap()
+            .into_t()
+            .unwrap();
+
+        let kyc_package_hash = context
+            .query(admin_hash, &["kyc_package_hash_wrapped".to_string()])
             .unwrap()
             .into_t()
             .unwrap();
         Self {
             context,
             hash,
-            admin: admin.to_account_hash(),
-            ali: ali.to_account_hash(),
-            bob: bob.to_account_hash(),
+            nft_package,
+            kyc_hash,
+            kyc_package_hash,
+            admin: admin_hash,
+            ali: ali_hash,
+            bob: bob_hash,
         }
+    }
+
+    pub fn add_kyc(&mut self, recipient: AccountHash) {
+        let code = Code::Hash(self.kyc_hash, "mint".to_string());
+        let mut token_meta = BTreeMap::new();
+        token_meta.insert("status".to_string(), "verified".to_string());
+        let args = runtime_args! {
+            "recipient" => Key::Account(recipient),
+            "token_id" => Option::<String>::None,
+            "token_meta" => token_meta
+        };
+        let session = SessionBuilder::new(code, args)
+            .with_address(self.admin)
+            .with_authorization_keys(&[self.admin])
+            .build();
+        self.context.run(session);
     }
 
     fn call(&mut self, sender: &AccountHash, method: &str, args: RuntimeArgs) {
@@ -177,7 +237,7 @@ impl CasperCEP47Contract {
         token_id: &str,
         token_meta: &Meta,
         sender: &AccountHash,
-        comissions : BTreeMap<String, String>,
+        commissions: BTreeMap<String, String>,
     ) {
         let mut gauge: BTreeMap<String, String> = BTreeMap::new();
         gauge.insert("gauge".to_string(), "is_gaugy".to_string());
@@ -192,7 +252,7 @@ impl CasperCEP47Contract {
                 "token_metas" => vec![token_meta.clone()],
                 "token_gauges" => vec![gauge],
                 "token_warehouses" => vec![warehouse],
-                "token_commissions" => vec![comissions],
+                "token_commissions" => vec![commissions],
             },
         );
     }

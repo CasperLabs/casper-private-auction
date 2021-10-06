@@ -2,38 +2,14 @@ use casper_engine_test_support::Hash;
 use casper_engine_test_support::{Account, AccountHash};
 use casper_types::{runtime_args, Key, PublicKey, RuntimeArgs, SecretKey, U512};
 
-/*
-  --session-arg "beneficiary_account    :   key         ='$SELLER_ACCOUNT_ARG'"\
-  --session-arg "token_contract_hash    :   key         ='$TOKEN_CONTRACT_HASH_ARG'"\
-  --session-arg "format                 :   string      ='$FORMAT'"\
-  --session-arg "starting_price         :   opt_u512    =$STARTING_PRICE"\
-  --session-arg "reserve_price          :   u512        ='$RESERVE_PRICE'"\
-  --session-arg "token_id               :   string      ='$TOKEN_ID_ARG'"\
-  --session-arg "start_time             :   u64         ='$START_TIME'"\
-  --session-arg "cancellation_time      :   u64         ='$CANCEL_TIME'"\
-  --session-arg "end_time               :   u64         ='$END_TIME'"\
-*/
-
-/*
-    runtime_args! {
-        "beneficiary_account"=>Key::Account(*beneficiary),
-        "token_contract_hash"=>Key::Hash(*nft),
-        "format"=>if english{"ENGLISH"}else{"DUTCH"},
-        "starting_price"=>if english{None}else{Some(U512::from(1000))},
-        "reserve_price"=>U512::from(1000),
-        "token_id"=>token_id,
-        "start_time" => now + 500,
-        "cancellation_time" => now + 3000,
-        "end_time" => now + 3500,
-    }
-*/
-
 #[derive(Debug)]
 pub struct AuctionArgsBuilder {
     // into Key
     beneficiary_account: AccountHash,
     // into Key
     token_contract_hash: Hash,
+    // into Key
+    kyc_package_hash: Hash,
     // true is `ENGLISH` | false is `DUTCH`
     is_english: bool,
     // ENGLISH format cannot have a starting price, build turn it into option
@@ -49,6 +25,7 @@ impl AuctionArgsBuilder {
     pub fn new_with_necessary(
         beneficiary: &AccountHash,
         nft: &Hash,
+        kyc_package_hash: &Hash,
         token_id: &str,
         english: bool,
         start_time: u64,
@@ -56,6 +33,7 @@ impl AuctionArgsBuilder {
         AuctionArgsBuilder {
             beneficiary_account: *beneficiary,
             token_contract_hash: *nft,
+            kyc_package_hash: *kyc_package_hash,
             is_english: english,
             starting_price: None,
             reserve_price: U512::from(1000),
@@ -86,6 +64,10 @@ impl AuctionArgsBuilder {
         self.token_contract_hash = *token_contract_hash;
     }
 
+    pub fn set_kyc_package_hash(&mut self, kyc_package_hash: &Hash) {
+        self.kyc_package_hash = *kyc_package_hash;
+    }
+
     pub fn set_starting_price(&mut self, starting_price: Option<U512>) {
         self.starting_price = starting_price;
     }
@@ -110,6 +92,7 @@ impl AuctionArgsBuilder {
         runtime_args! {
             "beneficiary_account"=>Key::Account(self.beneficiary_account),
             "token_contract_hash"=>Key::Hash(self.token_contract_hash),
+            "kyc_package_hash"=>Key::Hash(self.kyc_package_hash),
             "format"=>if self.is_english{"ENGLISH"}else{"DUTCH"},
             "starting_price"=> self.starting_price,
             "reserve_price"=>self.reserve_price,
@@ -136,6 +119,7 @@ impl Default for AuctionArgsBuilder {
         AuctionArgsBuilder {
             beneficiary_account: AccountHash::from(&(&admin_secret).into()),
             token_contract_hash: [0u8; 32],
+            kyc_package_hash: [0u8; 32],
             is_english: true,
             starting_price: None,
             reserve_price: U512::from(1000),

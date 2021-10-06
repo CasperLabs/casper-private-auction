@@ -74,8 +74,9 @@ impl Auction {
         };
         let mut token_ids = alloc::vec::Vec::new();
         token_ids.push(AuctionData::get_token_id());
-        runtime::call_contract(
+        runtime::call_versioned_contract(
             AuctionData::get_nft_hash(),
+            None,
             "transfer",
             runtime_args! {
               "sender" => auction_key,
@@ -109,10 +110,24 @@ impl crate::AuctionLogic for Auction {
                 let mut bids = AuctionData::get_bids();
                 match bids.get(&key) {
                     Some(bid) => {
+                        // Every actor receives x one-thousandth of the winning bid, the surplus goes to the designated beneficiary account.
+                        let share_piece = bid / 1000;
+                        let mut given_as_shares = U512::zero();
+                        for (account, share) in AuctionData::get_commission_shares() {
+                            let actor_share = share_piece * share;
+                            system::transfer_from_purse_to_account(
+                                auction_purse,
+                                account,
+                                actor_share,
+                                None,
+                            )
+                            .unwrap_or_revert();
+                            given_as_shares += actor_share;
+                        }
                         system::transfer_from_purse_to_account(
                             auction_purse,
                             AuctionData::get_beneficiary(),
-                            bid,
+                            bid - given_as_shares,
                             None,
                         )
                         .unwrap_or_revert();
