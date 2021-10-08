@@ -13,6 +13,10 @@ FORMAT="ENGLISH"
 RESERVE_PRICE=500
 STARTING_PRICE=null
 
+# KYC grants
+. ../setup/actions/mint_kyc.sh $BUYER_2_KEY
+. ../setup/actions/mint_kyc.sh $BUYER_3_KEY
+
 # Bids
 BID_1=400
 BID_2=600

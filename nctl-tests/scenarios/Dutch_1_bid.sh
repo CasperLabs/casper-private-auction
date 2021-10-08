@@ -13,6 +13,9 @@ FORMAT="DUTCH"
 RESERVE_PRICE=500
 STARTING_PRICE="'1000'"
 
+# KYC grants
+. ../setup/actions/mint_kyc.sh $BUYER_2_KEY
+
 # Bids
 BID_1=1200
 SECRET_KEY_1=$USER_2_SECRET_KEY
