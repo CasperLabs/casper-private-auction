@@ -40,7 +40,7 @@ BUYER_5_PURSE=$(nctl-view-user-account user=5\
 
 sleep 90
 
-KYC_CONTRACT_PACKAGE_HASH=$(nctl-view-user-account user=1\
+KYC_PACKAGE_HASH=$(nctl-view-user-account user=1\
   | tr -d "\n"\
   | grep -o  "{.*"\
   | jq '.stored_value.Account.named_keys[] | select(.name == "TestKYCNFT_package_hash") | .key'\
@@ -56,7 +56,11 @@ TOKEN_CONTRACT_HASH=$(nctl-view-user-account user=1\
   | jq '.stored_value.Account.named_keys[] | select(.name == "TestCaskNFT_contract_hash") | .key'\
   | tr -d '"')
 
-echo "Obtained seller key $SELLER_KEY, KYC contract package hash $KYC_CONTRACT_PACKAGE_HASH and NFT contract hash $TOKEN_CONTRACT_HASH"
+echo "Obtained the following hashes:
+ seller key - $SELLER_KEY
+ KYC contract package hash - $KYC_CONTRACT_HASH
+ NFT contract hash - $TOKEN_CONTRACT_HASH
+ "
 
 echo "Constructing complex args"
 
@@ -73,24 +77,22 @@ STATE=$(casper-client get-state-root-hash\
   | jq .result.state_root_hash\
   | tr -d '"')
 
-#OWNED_TOKENS_DICT=$(casper-client query-state\
-#  --node-address $NODE_1_ADDRESS\
-#  --state-root-hash $STATE\
-#  --key $TOKEN_CONTRACT_HASH\
-#  | jq '.result.stored_value.Contract.named_keys[] | select(.name == "owned_tokens_by_index") | .key'\
-#  | tr -d '"')
-#
-#TOKEN_INDEX=$(rust-script setup/misc/encode_owner_token.rs $SELLER_KEY 0 | tail -1)
-#
-#TOKEN_ID=$(casper-client get-dictionary-item\
-#  --node-address $NODE_1_ADDRESS\
-#  --state-root-hash $STATE\
-#  --seed-uref $OWNED_TOKENS_DICT\
-#  --dictionary-item-key $TOKEN_INDEX\
-#  | jq .result.stored_value.CLValue.parsed\
-#  | tr -d '"')
+OWNED_TOKENS_DICT=$(casper-client query-state\
+  --node-address $NODE_1_ADDRESS\
+  --state-root-hash $STATE\
+  --key $TOKEN_CONTRACT_HASH\
+  | jq '.result.stored_value.Contract.named_keys[] | select(.name == "owned_tokens_by_index") | .key'\
+  | tr -d '"')
 
-#Hardcoded in the argument builder for now
-TOKEN_ID="test_token"
+TOKEN_INDEX=$(rust-script setup/misc/encode_owner_token.rs $SELLER_KEY 0 | tail -1)
 
-#echo "Minted token $TOKEN_ID"
+TOKEN_ID=$(casper-client get-dictionary-item\
+  --node-address $NODE_1_ADDRESS\
+  --state-root-hash $STATE\
+  --seed-uref $OWNED_TOKENS_DICT\
+  --dictionary-item-key $TOKEN_INDEX\
+  | jq .result.stored_value.CLValue.parsed\
+  | tr -d '"')
+
+echo "Obtained token with id (expected 'test_token'):
+ $TOKEN_ID"
