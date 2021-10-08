@@ -156,10 +156,10 @@ impl CasperCEP47Contract {
     pub fn add_kyc(&mut self, recipient: AccountHash) {
         let code = Code::Hash(self.kyc_hash, "mint".to_string());
         let mut token_meta = BTreeMap::new();
-        token_meta.insert("status".to_string(), "verified".to_string());
+        token_meta.insert("status".to_string(), "Status :: Active".to_string());
         let args = runtime_args! {
             "recipient" => Key::Account(recipient),
-            "token_id" => Option::<String>::None,
+            "token_id" => Some(recipient.to_string()),
             "token_meta" => token_meta
         };
         let session = SessionBuilder::new(code, args)
