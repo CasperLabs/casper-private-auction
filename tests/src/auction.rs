@@ -92,7 +92,9 @@ impl AuctionContract {
             commissions,
         );
 
+        cep47.add_kyc(cep47.admin);
         cep47.add_kyc(cep47.ali);
+        cep47.add_kyc(cep47.bob);
         cep47
     }
 

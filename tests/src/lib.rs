@@ -11,6 +11,8 @@ use casper_types::{
     ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
 };
 
+use crate::auction_args::AuctionArgsBuilder;
+
 pub mod auction;
 pub mod auction_args;
 pub mod nft;
@@ -281,4 +283,71 @@ fn english_auction_bid_early_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now - 1000);
+}
+
+// Deploying with wrong times reverts with User(9) error
+#[test]
+#[should_panic = "User(18)"]
+fn auction_bid_no_kyc_token_test() {
+    let mut cep47 = nft::CasperCEP47Contract::deploy();
+    let token_id = String::from("custom_token_id");
+    let token_meta = nft::meta::red_dragon();
+    let mut commissions = BTreeMap::new();
+    cep47.mint(
+        &Key::Account(cep47.admin),
+        &token_id,
+        &token_meta,
+        &(cep47.admin.clone()),
+        commissions,
+    );
+    let nft::CasperCEP47Contract {
+        mut context,
+        hash,
+        kyc_hash,
+        kyc_package_hash,
+        nft_package,
+        admin,
+        ali,
+        bob,
+    } = cep47;
+    let now: u64 = AuctionArgsBuilder::get_now_u64();
+    let auction_args = runtime_args! {
+        "beneficiary_account"=>Key::Account(admin),
+        "token_contract_hash"=>Key::Hash(nft_package),
+        "kyc_package_hash" => Key::Hash(kyc_package_hash),
+        "format"=> "ENGLISH",
+        "starting_price"=> None::<U512>,
+        "reserve_price"=>U512::from(300),
+        "token_id"=>token_id,
+        "start_time" => now+500,
+        "cancellation_time" => now+3500,
+        "end_time" => now+4000,
+    };
+    //deploy auction
+    let session_code = Code::from("casper-private-auction-installer.wasm");
+    let session = SessionBuilder::new(session_code, auction_args)
+        .with_address(admin)
+        .with_authorization_keys(&[admin])
+        .with_block_time(0)
+        .build();
+    context.run(session);
+    let contract_hash: Hash = context
+        .query(admin, &["auction_contract_hash_wrapped".into()])
+        .unwrap()
+        .into_t()
+        .unwrap();
+    //bid
+    let session_code = Code::from("bid-purse.wasm");
+    let session = SessionBuilder::new(
+        session_code,
+        runtime_args! {
+            "bid" => U512::from(40000),
+            "auction_contract" => contract_hash
+        },
+    )
+    .with_address(ali)
+    .with_authorization_keys(&[ali])
+    .with_block_time(now + 1500)
+    .build();
+    context.run(session);
 }

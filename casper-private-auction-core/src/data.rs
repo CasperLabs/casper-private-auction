@@ -71,9 +71,7 @@ pub fn read_named_key_uref(name: &str) -> URef {
 pub fn read_named_key_value<T: CLTyped + FromBytes>(name: &str) -> T {
     let uref = read_named_key_uref(name);
 
-    storage::read(uref)
-        .unwrap_or_revert_with(ApiError::User(102))
-        .unwrap_or_revert_with(ApiError::User(103))
+    storage::read(uref).unwrap_or_revert().unwrap_or_revert()
 }
 
 pub fn write_named_key_value<T: CLTyped + ToBytes>(name: &str, value: T) {
@@ -253,7 +251,6 @@ impl AuctionData {
     }
 
     pub fn is_kyc_proved() -> bool {
-        runtime::get_caller();
         runtime::call_versioned_contract::<bool>(
             Self::get_kyc_hash(),
             None,
@@ -262,8 +259,7 @@ impl AuctionData {
                 "account" => Key::Account(runtime::get_caller()),
                 "index" => Option::<casper_types::U256>::None
             },
-        );
-        true
+        )
     }
 }
 
@@ -345,7 +341,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (OWNER, token_owner),
         (BENEFICIARY_ACCOUNT, beneficiary_account),
         (NFT_HASH, Key::Hash(token_contract_hash)),
-        (KYC_HASH, Key::Hash(kyc_contract_hash)),
+        (KYC_HASH, kyc_contract_hash),
         (ENGLISH_FORMAT, english_format),
         (TOKEN_ID, token_id),
         (START, start_time),

@@ -25,6 +25,9 @@ impl Auction {
         if !AuctionData::is_auction_live() || AuctionData::is_finalized() {
             runtime::revert(AuctionError::BadState)
         }
+        if !AuctionData::is_kyc_proved() {
+            runtime::revert(AuctionError::KYCError);
+        }
         // Get the existing bid, if any
         let mut bids = AuctionData::get_bids();
         let auction_purse = AuctionData::get_auction_purse();
