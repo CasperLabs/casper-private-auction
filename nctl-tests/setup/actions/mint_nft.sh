@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CWD=$(pwd)
+CWD_MINT=$(pwd)
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$parent_path"
 
@@ -15,4 +15,4 @@ NFT_MINT_DEPLOY=$(casper-client put-deploy\
         | jq .result.deploy_hash\
         | tr -d '"')
 
-cd $CWD
+cd $CWD_MINT

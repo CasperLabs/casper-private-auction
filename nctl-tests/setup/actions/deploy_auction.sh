@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # This step is necessary to make sure the path to auction wasm works correctly
-CWD=$(pwd)
+CWD_AUCTION=$(pwd)
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$parent_path"
 
 SELLER_ACCOUNT_ARG=$1
-TOKEN_CONTRACT_HASH_ARG=$2
+TOKEN_PACKAGE_HASH_ARG=$2
 KYC_PACKAGE_HASH_ARG=$3
 TOKEN_ID_ARG=$4
 FORMAT=$5
@@ -26,7 +26,7 @@ AUCTION_INSTALL_DEPLOY=$(casper-client put-deploy\
   --payment-amount $GAS_LIMIT\
   --session-path $AUCTION_WASM\
   --session-arg "beneficiary_account:key='$SELLER_ACCOUNT_ARG'"\
-  --session-arg "token_contract_hash:key='$TOKEN_CONTRACT_HASH_ARG'"\
+  --session-arg "token_contract_hash:key='$TOKEN_PACKAGE_HASH_ARG'"\
   --session-arg "kyc_package_hash:key='$KYC_PACKAGE_HASH_ARG'"\
   --session-arg "format:string='$FORMAT'"\
   --session-arg "starting_price:opt_u512=$STARTING_PRICE"\
@@ -40,7 +40,7 @@ AUCTION_INSTALL_DEPLOY=$(casper-client put-deploy\
 
 sleep 90
 
-cd $CWD
+cd $CWD_AUCTION
 
 STATE=$(casper-client get-state-root-hash\
   --node-address $NODE_1_ADDRESS\

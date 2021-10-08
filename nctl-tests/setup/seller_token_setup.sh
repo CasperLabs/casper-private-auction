@@ -56,10 +56,17 @@ TOKEN_CONTRACT_HASH=$(nctl-view-user-account user=1\
   | jq '.stored_value.Account.named_keys[] | select(.name == "TestCaskNFT_contract_hash") | .key'\
   | tr -d '"')
 
+TOKEN_PACKAGE_HASH=$(nctl-view-user-account user=1\
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestCaskNFT_package_hash") | .key'\
+  | tr -d '"')
+
 echo "Obtained the following hashes:
  seller key - $SELLER_KEY
- KYC contract package hash - $KYC_CONTRACT_HASH
+ KYC contract package hash - $KYC_PACKAGE_HASH
  NFT contract hash - $TOKEN_CONTRACT_HASH
+ NFT contract package hash - $TOKEN_PACKAGE_HASH
  "
 
 echo "Constructing complex args"
