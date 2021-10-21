@@ -88,30 +88,6 @@ impl CasperCEP47Contract {
             .with_public_key(ali, U512::from(500_000_000_000_000_000u64))
             .with_public_key(bob, U512::from(500_000_000_000_000_000u64))
             .build();
-        let session_code = Code::from("cask-token.wasm");
-        let session_args = runtime_args! {
-            "name" => token_cfg::NAME,
-            "symbol" => token_cfg::SYMBOL,
-            "meta" => token_cfg::contract_meta(),
-            "admin" => Key::Account(admin_hash),
-            "contract_name" => "NFT".to_string()
-        };
-        let session = SessionBuilder::new(session_code, session_args)
-            .with_address(admin_hash)
-            .with_authorization_keys(&[admin_hash])
-            .build();
-        context.run(session);
-        let hash = context
-            .query(admin_hash, &[CONTRACT_HASH_KEY.to_string()])
-            .unwrap()
-            .into_t()
-            .unwrap();
-
-        let nft_package = context
-            .query(admin_hash, &["NFT_package_hash_wrapped".to_string()])
-            .unwrap()
-            .into_t()
-            .unwrap();
 
         let kyc_code = Code::from("civic-token.wasm");
         let mut meta = BTreeMap::new();
@@ -141,6 +117,33 @@ impl CasperCEP47Contract {
             .unwrap()
             .into_t()
             .unwrap();
+
+        let session_code = Code::from("cask-token.wasm");
+        let session_args = runtime_args! {
+            "name" => token_cfg::NAME,
+            "symbol" => token_cfg::SYMBOL,
+            "meta" => token_cfg::contract_meta(),
+            "admin" => Key::Account(admin_hash),
+            "kyc_package_hash" => Key::Hash(kyc_package_hash),
+            "contract_name" => "NFT".to_string()
+        };
+        let session = SessionBuilder::new(session_code, session_args)
+            .with_address(admin_hash)
+            .with_authorization_keys(&[admin_hash])
+            .build();
+        context.run(session);
+        let hash = context
+            .query(admin_hash, &[CONTRACT_HASH_KEY.to_string()])
+            .unwrap()
+            .into_t()
+            .unwrap();
+
+        let nft_package = context
+            .query(admin_hash, &["NFT_package_hash_wrapped".to_string()])
+            .unwrap()
+            .into_t()
+            .unwrap();
+
         Self {
             context,
             hash,
