@@ -36,30 +36,55 @@ BUYER_5_KEY=$(nctl-view-user-account user=5\
 BUYER_5_PURSE=$(nctl-view-user-account user=5\
   | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
 
+. setup/actions/deploy_kyc.sh
+
+sleep 90
+
+KYC_CONTRACT_HASH=$(nctl-view-user-account user=1\
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestKYCNFT_contract_hash") | .key'\
+  | tr -d '"')
+
+KYC_PACKAGE_HASH=$(nctl-view-user-account user=1\
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestKYCNFT_package_hash") | .key'\
+  | tr -d '"')
+
+. setup/actions/grant_gatekeeper.sh
+
 . setup/actions/deploy_nft.sh
 
 sleep 90
 
 TOKEN_CONTRACT_HASH=$(nctl-view-user-account user=1\
-  | grep -Pom1 "(?<=key\": \")hash-[0-9|a-z]{64}")
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestCaskNFT_contract_hash") | .key'\
+  | tr -d '"')
 
-echo "Obtained seller key $SELLER_KEY and contract hash $TOKEN_CONTRACT_HASH"
+TOKEN_PACKAGE_HASH=$(nctl-view-user-account user=1\
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestCaskNFT_package_hash") | .key'\
+  | tr -d '"')
 
-DRAGONS_MINT_DEPLOY=$(casper-client put-deploy\
-        --chain-name $NETWORK_NAME\
-        --node-address $NODE_1_ADDRESS\
-        --secret-key $USER_1_SECRET_KEY\
-        --payment-amount $GAS_LIMIT\
-        --session-hash $TOKEN_CONTRACT_HASH\
-        --session-entry-point "mint"\
-        --session-arg "recipient:key='$SELLER_KEY'"\
-        --session-arg "token_ids:opt_string=null"\
-        --session-arg "token_metas:string=''"\
-        --session-arg "token_gauges:string=''"\
-        --session-arg "token_warehouses:string=''"\
-        --session-arg "token_commissions:string=''"\
-        | jq .result.deploy_hash\
-        | tr -d '"')
+echo "Obtained the following hashes:
+ seller key - $SELLER_KEY
+ KYC contract hash - $KYC_CONTRACT_HASH
+ KYC contract package hash - $KYC_PACKAGE_HASH
+ NFT contract hash - $TOKEN_CONTRACT_HASH
+ NFT contract package hash - $TOKEN_PACKAGE_HASH
+ "
+
+echo "Constructing complex args"
+
+cd setup/fixtures
+./metacask-runtime-arg-builder $SELLER_KEY $SELLER_KEY "artist,$BUYER_5_KEY,100|broker,$BUYER_4_KEY,200"
+cd ../..
+
+. setup/actions/mint_nft.sh
 
 sleep 90
 
@@ -85,4 +110,5 @@ TOKEN_ID=$(casper-client get-dictionary-item\
   | jq .result.stored_value.CLValue.parsed\
   | tr -d '"')
 
-echo "Minted token $TOKEN_ID"
+echo "Obtained token with id (expected 'test_token'):
+ $TOKEN_ID"
