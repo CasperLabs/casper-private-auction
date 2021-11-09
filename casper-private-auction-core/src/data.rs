@@ -138,17 +138,12 @@ impl AuctionData {
         let start_time = AuctionData::get_start();
         let end_time = AuctionData::get_end();
 
+        let price_range = start_price - end_price;
         let duration = end_time - start_time;
-        let time_diff = block_time - start_time;
 
-        if time_diff == 0u64 {
-            start_price
-        } else {
-            let time_ratio = duration / time_diff;
-            let price_range = start_price - end_price;
-            let price_delta = price_range / U512::from(time_ratio);
-            start_price - price_delta
-        }
+        let step = price_range / duration;
+        let time_passed = block_time - start_time;
+        start_price - (step * time_passed)
     }
 
     pub fn get_reserve() -> U512 {
