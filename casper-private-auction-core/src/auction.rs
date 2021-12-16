@@ -148,6 +148,12 @@ impl crate::AuctionLogic for Auction {
     }
 
     fn auction_bid() {
+        if !AuctionData::is_auction_live() || AuctionData::is_finalized() {
+            runtime::revert(AuctionError::BadState)
+        }
+        if !AuctionData::is_kyc_proved() {
+            runtime::revert(AuctionError::KYCError);
+        }
         // We do not check times here because we do that in Auction::add_bid
         // Figure out who is trying to bid and what their bid is
         let bidder = Self::get_bidder();

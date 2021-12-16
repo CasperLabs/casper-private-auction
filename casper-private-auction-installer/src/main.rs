@@ -2,7 +2,7 @@
 #![no_main]
 
 extern crate alloc;
-use alloc::{string::String, vec};
+use alloc::{string::String, vec, format};
 use casper_contract::{
     contract_api::{
         runtime::{self},
@@ -92,9 +92,10 @@ pub extern "C" fn call() {
         Some(String::from(data::AUCTION_ACCESS_TOKEN)),
     );
     let auction_key = Key::Hash(auction_hash.value());
-    runtime::put_key("auction_contract_hash", auction_key);
+    let auction_desig : String = runtime::get_named_arg("name");
+    runtime::put_key(&format!("{}_auction_contract_hash", auction_desig), auction_key);
     runtime::put_key(
-        "auction_contract_hash_wrapped",
+        &format!("{}_auction_contract_hash_wrapped", auction_desig),
         storage::new_uref(auction_hash).into(),
     );
     // Create purse in the contract's context

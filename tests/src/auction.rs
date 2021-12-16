@@ -114,7 +114,7 @@ impl AuctionContract {
             .build();
         context.run(session);
         let contract_hash = context
-            .query(admin, &["auction_contract_hash_wrapped".into()])
+            .query(admin, &["test_auction_contract_hash_wrapped".into()])
             .unwrap()
             .into_t()
             .unwrap();
@@ -245,7 +245,7 @@ impl AuctionContract {
                 if contract_hash != self.contract_hash {
                     "DragonsNFT_contract".to_string()
                 } else {
-                    "auction_contract_hash".to_string()
+                    "test_auction_contract_hash".to_string()
                 },
                 name.to_string(),
             ],

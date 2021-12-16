@@ -19,6 +19,7 @@ pub struct AuctionArgsBuilder {
     pub start_time: u64,
     cancellation_time: u64,
     end_time: u64,
+    name: String,
 }
 
 impl AuctionArgsBuilder {
@@ -41,6 +42,7 @@ impl AuctionArgsBuilder {
             start_time,
             cancellation_time: 3000,
             end_time: 3500,
+            name: "test".to_string()
         }
     }
 
@@ -100,6 +102,7 @@ impl AuctionArgsBuilder {
             "start_time" => self.start_time,
             "cancellation_time" => self.start_time+self.cancellation_time,
             "end_time" => self.start_time+self.end_time,
+            "name" => self.name.clone()
         }
     }
 
@@ -127,6 +130,7 @@ impl Default for AuctionArgsBuilder {
             start_time: now + 500,
             cancellation_time: 3000,
             end_time: 3500,
+            name: "test".to_string()
         }
     }
 }

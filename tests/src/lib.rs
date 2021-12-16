@@ -115,7 +115,7 @@ fn english_auction_bid_too_late_test() {
 fn english_auction_bid_too_low_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
-    auction_contract.bid(&auction_contract.bob.clone(), U512::from(1), now + 10000);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(1), now + 1000);
 }
 
 #[test]
@@ -209,6 +209,7 @@ fn auction_unknown_format_test() {
         "start_time" => 1,
         "cancellation_time" => 2,
         "end_time" => 3,
+        "name" => "test"
     };
     let session_code = Code::from("casper-private-auction-installer.wasm");
     let session = SessionBuilder::new(session_code, auction_args)
@@ -255,6 +256,7 @@ fn auction_bad_times_test() {
         "start_time" => 1000_u64,
         "cancellation_time" => 20_u64,
         "end_time" => 11_u64,
+        "name" => "test"
     };
     let session_code = Code::from("casper-private-auction-installer.wasm");
     let session = SessionBuilder::new(session_code, auction_args)
@@ -322,6 +324,7 @@ fn auction_bid_no_kyc_token_test() {
         "start_time" => now+500,
         "cancellation_time" => now+3500,
         "end_time" => now+4000,
+        "name" => "test"
     };
     //deploy auction
     let session_code = Code::from("casper-private-auction-installer.wasm");
@@ -332,7 +335,7 @@ fn auction_bid_no_kyc_token_test() {
         .build();
     context.run(session);
     let contract_hash: Hash = context
-        .query(admin, &["auction_contract_hash_wrapped".into()])
+        .query(admin, &["test_auction_contract_hash_wrapped".into()])
         .unwrap()
         .into_t()
         .unwrap();
