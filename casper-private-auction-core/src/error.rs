@@ -20,6 +20,7 @@ pub enum AuctionError {
     CommissionRateIncorrectSerialization = 16,
     CommissionTooManyShares = 17,
     KYCError = 18,
+    InvalidCallStackLenght = 19,
 }
 
 impl From<AuctionError> for ApiError {

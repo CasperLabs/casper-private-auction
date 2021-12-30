@@ -1,6 +1,13 @@
-use casper_engine_test_support::Hash;
-use casper_engine_test_support::{Account, AccountHash};
-use casper_types::{runtime_args, Key, PublicKey, RuntimeArgs, SecretKey, U512};
+use casper_engine_test_support::{
+    DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
+    DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT, DEFAULT_RUN_GENESIS_REQUEST,
+};
+
+use crate::Hash;
+use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
+use casper_types::{
+    account::AccountHash, runtime_args, Key, PublicKey, RuntimeArgs, SecretKey, U512,
+};
 
 #[derive(Debug)]
 pub struct AuctionArgsBuilder {
@@ -42,7 +49,7 @@ impl AuctionArgsBuilder {
             start_time,
             cancellation_time: 3000,
             end_time: 3500,
-            name: "test".to_string()
+            name: "test".to_string(),
         }
     }
 
@@ -130,7 +137,7 @@ impl Default for AuctionArgsBuilder {
             start_time: now + 500,
             cancellation_time: 3000,
             end_time: 3500,
-            name: "test".to_string()
+            name: "test".to_string(),
         }
     }
 }

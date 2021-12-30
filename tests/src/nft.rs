@@ -1,9 +1,14 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf};
 
-use casper_engine_test_support::{Code, Hash, SessionBuilder, TestContext, TestContextBuilder};
+use casper_engine_test_support::{
+    DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
+    DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT, DEFAULT_RUN_GENESIS_REQUEST,
+};
+
+use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
 use casper_types::{
     account::AccountHash, bytesrepr::FromBytes, runtime_args, CLTyped, ContractPackageHash,
-    HashAddr, Key, PublicKey, RuntimeArgs, SecretKey, U256, U512,
+    HashAddr, Key, PublicKey, RuntimeArgs, SecretKey, URef, U256, U512,
 };
 
 pub mod meta {
@@ -57,9 +62,11 @@ const OWNED_TOKENS_DICT: &str = "owned_tokens";
 const TOKEN_OWNERS_DICT: &str = "owners";
 const METADATA_DICT: &str = "metadata";
 
+use crate::Hash;
+
 pub struct CasperCEP47Contract {
-    pub context: TestContext,
-    pub hash: Hash,
+    pub builder: InMemoryWasmTestBuilder,
+    pub nft_hash: Hash,
     pub nft_package: Hash,
     pub kyc_hash: Hash,
     pub kyc_package_hash: Hash,
@@ -71,25 +78,28 @@ pub struct CasperCEP47Contract {
 pub type TokenId = String;
 pub type Meta = BTreeMap<String, String>;
 
+use crate::utils::{deploy, fund_account, query, DeploySource, query_dictionary_item};
+
 impl CasperCEP47Contract {
     pub fn deploy() -> Self {
         let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
         let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
         let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
-        let admin: PublicKey = (&admin_secret).into();
-        let admin_hash = admin.to_account_hash();
-        let ali: PublicKey = (&ali_secret).into();
-        let ali_hash = ali.to_account_hash();
-        let bob: PublicKey = (&bob_secret).into();
-        let bob_hash = bob.to_account_hash();
-        let mut context = TestContextBuilder::new()
-            .with_public_key(admin, U512::from(500_000_000_000_000_000u64))
-            .with_public_key(ali, U512::from(500_000_000_000_000_000u64))
-            .with_public_key(bob, U512::from(500_000_000_000_000_000u64))
-            .build();
+        let admin_pk: PublicKey = (&admin_secret).into();
+        let admin = admin_pk.to_account_hash();
+        let ali_pk: PublicKey = (&ali_secret).into();
+        let ali = ali_pk.to_account_hash();
+        let bob_pk: PublicKey = (&bob_secret).into();
+        let bob = bob_pk.to_account_hash();
 
-        let kyc_code = Code::from("civic-token.wasm");
+        let mut builder = InMemoryWasmTestBuilder::default();
+        builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+        builder.exec(fund_account(&admin)).expect_success().commit();
+        builder.exec(fund_account(&ali)).expect_success().commit();
+        builder.exec(fund_account(&bob)).expect_success().commit();
+
+        let kyc_code = PathBuf::from("civic-token.wasm");
         let mut meta = BTreeMap::new();
         meta.insert("origin".to_string(), "kyc".to_string());
 
@@ -98,66 +108,72 @@ impl CasperCEP47Contract {
             "contract_name" => "kyc",
             "symbol" => "symbol",
             "meta" => meta,
-            "admin" => Key::Account(admin_hash)
+            "admin" => Key::Account(admin)
         };
-        let kyc_session = SessionBuilder::new(kyc_code, kyc_args)
-            .with_address(admin_hash)
-            .with_authorization_keys(&[admin_hash])
-            .build();
 
-        context.run(kyc_session);
-        let kyc_hash = context
-            .query(admin_hash, &["kyc_contract_hash_wrapped".to_string()])
-            .unwrap()
-            .into_t()
-            .unwrap();
+        deploy(
+            &mut builder,
+            &admin,
+            &DeploySource::Code(kyc_code),
+            kyc_args,
+            true,
+            None,
+        );
 
-        let kyc_package_hash = context
-            .query(admin_hash, &["kyc_package_hash_wrapped".to_string()])
-            .unwrap()
-            .into_t()
-            .unwrap();
+        let kyc_hash = query(
+            &builder,
+            Key::Account(admin),
+            &["kyc_contract_hash_wrapped".to_string()],
+        );
 
-        let session_code = Code::from("cask-token.wasm");
-        let session_args = runtime_args! {
+        let kyc_package_hash = query(
+            &builder,
+            Key::Account(admin),
+            &["kyc_package_hash_wrapped".to_string()],
+        );
+        
+        let token_code = PathBuf::from("cask-token.wasm");
+        let token_args = runtime_args! {
             "name" => token_cfg::NAME,
             "symbol" => token_cfg::SYMBOL,
             "meta" => token_cfg::contract_meta(),
-            "admin" => Key::Account(admin_hash),
+            "admin" => Key::Account(admin),
             "kyc_package_hash" => Key::Hash(kyc_package_hash),
             "contract_name" => "NFT".to_string()
         };
-        let session = SessionBuilder::new(session_code, session_args)
-            .with_address(admin_hash)
-            .with_authorization_keys(&[admin_hash])
-            .build();
-        context.run(session);
-        let hash = context
-            .query(admin_hash, &[CONTRACT_HASH_KEY.to_string()])
-            .unwrap()
-            .into_t()
-            .unwrap();
-
-        let nft_package = context
-            .query(admin_hash, &["NFT_package_hash_wrapped".to_string()])
-            .unwrap()
-            .into_t()
-            .unwrap();
+        
+        deploy(
+            &mut builder,
+            &admin,
+            &DeploySource::Code(token_code),
+            token_args,
+            true,
+            None,
+        );
+        let nft_hash = query(
+            &builder,
+            Key::Account(admin),
+            &[CONTRACT_HASH_KEY.to_string()],
+        );
+        let nft_package = query(
+            &builder,
+            Key::Account(admin),
+            &["NFT_package_hash_wrapped".to_string()],
+        );
 
         Self {
-            context,
-            hash,
+            builder,
+            nft_hash,
             nft_package,
             kyc_hash,
             kyc_package_hash,
-            admin: admin_hash,
-            ali: ali_hash,
-            bob: bob_hash,
+            admin,
+            ali,
+            bob,
         }
     }
 
     pub fn add_kyc(&mut self, recipient: AccountHash) {
-        let code = Code::Hash(self.kyc_hash, "mint".to_string());
         let mut token_meta = BTreeMap::new();
         token_meta.insert("status".to_string(), "active".to_string());
         let args = runtime_args! {
@@ -165,36 +181,40 @@ impl CasperCEP47Contract {
             "token_id" => Some(recipient.to_string()),
             "token_meta" => token_meta
         };
-        let session = SessionBuilder::new(code, args)
-            .with_address(self.admin)
-            .with_authorization_keys(&[self.admin])
-            .build();
-        self.context.run(session);
+        deploy(
+            &mut self.builder,
+            &self.admin,
+            &DeploySource::ByHash {
+                hash: self.kyc_package_hash,
+                method: "mint".to_string(),
+            },
+            args,
+            true,
+            None,
+        );
+        
     }
 
     fn call(&mut self, sender: &AccountHash, method: &str, args: RuntimeArgs) {
-        let account = *sender;
-        let code = Code::Hash(self.hash, method.to_string());
-        let session = SessionBuilder::new(code, args)
-            .with_address(account)
-            .with_authorization_keys(&[account])
-            .build();
-        self.context.run(session);
+        deploy(
+            &mut self.builder,
+            &sender,
+            &DeploySource::ByHash {
+                hash: self.nft_package,
+                method: method.to_string(),
+            },
+            args,
+            true,
+            None,
+        );
     }
 
     fn query_contract<T: CLTyped + FromBytes>(&self, name: &str) -> Option<T> {
-        match self
-            .context
-            .query(self.admin, &[CONTRACT_KEY.to_string(), name.to_string()])
-        {
-            Err(_) => None,
-            Ok(maybe_value) => {
-                let value = maybe_value
-                    .into_t()
-                    .unwrap_or_else(|_| panic!("{} is not expected type.", name));
-                Some(value)
-            }
-        }
+        query(
+            &self.builder,
+            Key::Account(self.admin),
+            &[CONTRACT_KEY.to_string(), name.to_string()],
+        )
     }
 
     fn query_dictionary_value<T: CLTyped + FromBytes>(
@@ -202,19 +222,17 @@ impl CasperCEP47Contract {
         dict_name: &str,
         key: String,
     ) -> Option<T> {
-        match self.context.query_dictionary_item(
-            Key::Hash(self.hash),
+        query_dictionary_item(
+            &self.builder,
+            Key::Hash(self.nft_hash),
             Some(dict_name.to_string()),
             key,
-        ) {
-            Err(_) => None,
-            Ok(maybe_value) => {
-                let value: Option<T> = maybe_value
-                    .into_t()
-                    .unwrap_or_else(|_| panic!("is not expected type."));
-                value
-            }
-        }
+        ).expect("should be stored value.")
+        .as_cl_value()
+        .expect("should be cl value.")
+        .clone()
+        .into_t()
+        .expect("Wrong type in query result.")
     }
 
     pub fn get_event(&self, index: u32) -> BTreeMap<String, String> {
@@ -246,6 +264,7 @@ impl CasperCEP47Contract {
         gauge.insert("gauge".to_string(), "is_gaugy".to_string());
         let mut warehouse: BTreeMap<String, String> = BTreeMap::new();
         warehouse.insert("ware".to_string(), "house".to_string());
+
         self.call(
             sender,
             "mint",

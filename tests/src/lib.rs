@@ -1,21 +1,27 @@
 #![allow(unused)]
-use std::{collections::BTreeMap, time::Duration};
+use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
 use casper_contract::contract_api::runtime;
 use casper_engine_test_support::{
-    internal::TIMESTAMP_MILLIS_INCREMENT, Code, Hash, SessionBuilder, TestContext,
-    TestContextBuilder,
-};
-use casper_types::{
-    account::AccountHash, bytesrepr::FromBytes, runtime_args, CLTyped, ContractHash,
-    ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
+    DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
+    DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT, DEFAULT_RUN_GENESIS_REQUEST,
 };
 
+use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
+use casper_types::{
+    account::AccountHash, bytesrepr::FromBytes, runtime_args, system::mint, CLTyped, ContractHash,
+    ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
+};
+use utils::{deploy, query, DeploySource};
+
 use crate::auction_args::AuctionArgsBuilder;
+
+type Hash = [u8; 32];
 
 pub mod auction;
 pub mod auction_args;
 pub mod nft;
+pub mod utils;
 
 #[test]
 fn english_auction_bid_finalize_test() {
@@ -189,8 +195,8 @@ fn auction_unknown_format_test() {
     );
 
     let nft::CasperCEP47Contract {
-        mut context,
-        hash,
+        mut builder,
+        nft_hash,
         kyc_hash,
         kyc_package_hash,
         nft_package,
@@ -211,13 +217,16 @@ fn auction_unknown_format_test() {
         "end_time" => 3,
         "name" => "test"
     };
-    let session_code = Code::from("casper-private-auction-installer.wasm");
-    let session = SessionBuilder::new(session_code, auction_args)
-        .with_address(admin)
-        .with_authorization_keys(&[admin])
-        .with_block_time(0)
-        .build();
-    context.run(session);
+
+    let auction_code = PathBuf::from("casper-private-auction-installer.wasm");
+    deploy(
+        &mut builder,
+        &admin,
+        &DeploySource::Code(auction_code),
+        auction_args,
+        true,
+        Some(0),
+    );
 }
 
 // Deploying with wrong times reverts with User(9) error
@@ -236,8 +245,8 @@ fn auction_bad_times_test() {
         commissions,
     );
     let nft::CasperCEP47Contract {
-        mut context,
-        hash,
+        mut builder,
+        nft_hash,
         kyc_hash,
         kyc_package_hash,
         nft_package,
@@ -258,13 +267,15 @@ fn auction_bad_times_test() {
         "end_time" => 11_u64,
         "name" => "test"
     };
-    let session_code = Code::from("casper-private-auction-installer.wasm");
-    let session = SessionBuilder::new(session_code, auction_args)
-        .with_address(admin)
-        .with_authorization_keys(&[admin])
-        .with_block_time(0)
-        .build();
-    context.run(session);
+    let auction_code = PathBuf::from("casper-private-auction-installer.wasm");
+    deploy(
+        &mut builder,
+        &admin,
+        &DeploySource::Code(auction_code),
+        auction_args,
+        true,
+        Some(0),
+    );
 }
 
 // Any combination of bad prices on auction deployment returns User(10)
@@ -303,8 +314,8 @@ fn auction_bid_no_kyc_token_test() {
         commissions,
     );
     let nft::CasperCEP47Contract {
-        mut context,
-        hash,
+        mut builder,
+        nft_hash,
         kyc_hash,
         kyc_package_hash,
         nft_package,
@@ -327,30 +338,31 @@ fn auction_bid_no_kyc_token_test() {
         "name" => "test"
     };
     //deploy auction
-    let session_code = Code::from("casper-private-auction-installer.wasm");
-    let session = SessionBuilder::new(session_code, auction_args)
-        .with_address(admin)
-        .with_authorization_keys(&[admin])
-        .with_block_time(0)
-        .build();
-    context.run(session);
-    let contract_hash: Hash = context
-        .query(admin, &["test_auction_contract_hash_wrapped".into()])
-        .unwrap()
-        .into_t()
-        .unwrap();
+    let auction_code = PathBuf::from("casper-private-auction-installer.wasm");
+    deploy(
+        &mut builder,
+        &admin,
+        &DeploySource::Code(auction_code),
+        auction_args,
+        true,
+        Some(0),
+    );
+    let contract_hash: Hash = query(
+        &builder,
+        Key::Account(admin),
+        &["test_auction_contract_hash_wrapped".to_string()],
+    );
     //bid
-    let session_code = Code::from("bid-purse.wasm");
-    let session = SessionBuilder::new(
-        session_code,
+    let session_code = PathBuf::from("bid-purse.wasm");
+    deploy(
+        &mut builder,
+        &admin,
+        &DeploySource::Code(session_code),
         runtime_args! {
             "bid" => U512::from(40000),
             "auction_contract" => contract_hash
         },
-    )
-    .with_address(ali)
-    .with_authorization_keys(&[ali])
-    .with_block_time(now + 1500)
-    .build();
-    context.run(session);
+        true,
+        Some(now + 1500),
+    );
 }

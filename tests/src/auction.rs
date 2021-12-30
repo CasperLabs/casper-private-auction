@@ -1,18 +1,27 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf};
 
-use crate::{auction_args::AuctionArgsBuilder, nft};
-use casper_engine_test_support::{
-    internal::TIMESTAMP_MILLIS_INCREMENT, Code, Hash, SessionBuilder, TestContext,
-    TestContextBuilder,
+use crate::{
+    auction_args::AuctionArgsBuilder,
+    nft,
+    utils::{deploy, query, DeploySource, query_dictionary_item},
 };
+use casper_engine_test_support::{
+    DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
+    DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT, DEFAULT_RUN_GENESIS_REQUEST,
+};
+
+use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
 use casper_types::{
     account::AccountHash, bytesrepr::FromBytes, runtime_args, CLTyped, ContractHash,
-    ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
+    ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, URef, U512,
 };
 
+use crate::Hash;
+
 pub struct AuctionContract {
-    pub context: TestContext,
+    pub builder: InMemoryWasmTestBuilder,
     pub contract_hash: Hash,
+    pub contract_package: Hash,
     pub admin: AccountHash,
     pub ali: AccountHash,
     pub bob: AccountHash,
@@ -23,8 +32,8 @@ impl AuctionContract {
         let token_id = String::from("custom_token_id");
         let mut commissions = BTreeMap::new();
         let nft::CasperCEP47Contract {
-            mut context,
-            hash,
+            builder: mut context,
+            nft_hash: hash,
             kyc_hash,
             kyc_package_hash,
             nft_package,
@@ -54,8 +63,8 @@ impl AuctionContract {
         let token_id = String::from("custom_token_id");
         let mut commissions = BTreeMap::new();
         let nft::CasperCEP47Contract {
-            mut context,
-            hash,
+            builder: mut context,
+            nft_hash: hash,
             kyc_hash,
             kyc_package_hash,
             nft_package,
@@ -84,6 +93,7 @@ impl AuctionContract {
     ) -> nft::CasperCEP47Contract {
         let mut cep47 = nft::CasperCEP47Contract::deploy();
         let token_meta = nft::meta::red_dragon();
+
         cep47.mint(
             &Key::Account(cep47.admin),
             token_id,
@@ -95,32 +105,43 @@ impl AuctionContract {
         cep47.add_kyc(cep47.admin);
         cep47.add_kyc(cep47.ali);
         cep47.add_kyc(cep47.bob);
+
         cep47
     }
 
     pub fn deploy_auction(
-        mut context: TestContext,
+        mut builder: InMemoryWasmTestBuilder,
         args: RuntimeArgs,
         start_time: u64,
         admin: AccountHash,
         ali: AccountHash,
         bob: AccountHash,
     ) -> Self {
-        let session_code = Code::from("casper-private-auction-installer.wasm");
-        let session = SessionBuilder::new(session_code, args)
-            .with_address(admin)
-            .with_authorization_keys(&[admin])
-            .with_block_time(start_time - 1)
-            .build();
-        context.run(session);
-        let contract_hash = context
-            .query(admin, &["test_auction_contract_hash_wrapped".into()])
-            .unwrap()
-            .into_t()
-            .unwrap();
+        let auction_code = PathBuf::from("casper-private-auction-installer.wasm");
+        deploy(
+            &mut builder,
+            &admin,
+            &DeploySource::Code(auction_code),
+            args,
+            true,
+            Some(start_time - 1),
+        );
+
+        let contract_hash = query(
+            &builder,
+            Key::Account(admin),
+            &["test_auction_contract_hash_wrapped".to_string()],
+        );
+        let contract_package = query(
+            &builder,
+            Key::Account(admin),
+            &["test_auction_contract_package_hash".to_string()],
+        );
+
         Self {
-            context,
+            builder,
             contract_hash,
+            contract_package,
             admin,
             ali,
             bob,
@@ -128,19 +149,18 @@ impl AuctionContract {
     }
 
     pub fn bid(&mut self, bidder: &AccountHash, bid: U512, block_time: u64) {
-        let session_code = Code::from("bid-purse.wasm");
-        let session = SessionBuilder::new(
-            session_code,
+        let session_code = PathBuf::from("bid-purse.wasm");
+        deploy(
+            &mut self.builder,
+            &bidder,
+            &DeploySource::Code(session_code),
             runtime_args! {
                 "bid" => bid,
                 "auction_contract" => self.contract_hash
             },
-        )
-        .with_address(*bidder)
-        .with_authorization_keys(&[*bidder])
-        .with_block_time(block_time)
-        .build();
-        self.context.run(session);
+            true,
+            Some(block_time),
+        );
     }
 
     pub fn cancel_bid(&mut self, caller: &AccountHash, time: u64) {
@@ -172,13 +192,13 @@ impl AuctionContract {
 
     pub fn get_event(&self, contract_hash: [u8; 32], index: u32) -> BTreeMap<String, String> {
         self.query_dictionary_value(
-            contract_hash,
+            Key::Hash(contract_hash),
             if contract_hash != self.contract_hash {
                 "events"
             } else {
                 "auction_events"
             },
-            &index.to_string(),
+            index.to_string(),
         )
         .unwrap()
     }
@@ -205,33 +225,36 @@ impl AuctionContract {
 
     /// Wrapper function for calling an entrypoint on the contract with the access rights of the deployer.
     fn call(&mut self, caller: &AccountHash, method: &str, args: RuntimeArgs, time: u64) {
-        let code = Code::Hash(self.contract_hash, method.to_string());
-        let session = SessionBuilder::new(code, args)
-            .with_address(*caller)
-            .with_authorization_keys(&[*caller])
-            .with_block_time(time)
-            .build();
-        self.context.run(session);
+        deploy(
+            &mut self.builder,
+            &caller,
+            &DeploySource::ByHash {
+                hash: self.contract_package,
+                method: method.to_string(),
+            },
+            args,
+            true,
+            Some(time),
+        );
     }
 
-    /// Wrapper for querying a dictionary entry.
-    pub fn query_dictionary_value<T: CLTyped + FromBytes>(
+    fn query_dictionary_value<T: CLTyped + FromBytes>(
         &self,
-        contract_hash: [u8; 32],
+        base: Key,
         dict_name: &str,
-        key: &str,
+        key: String,
     ) -> Option<T> {
-        // We can construct the first parameter for this call with either the hash of the function,
-        // or the address of the deployer, depending on where we initiated the dictionary.
-        // In this example the dictionary can be reached from both.
-        match self.context.query_dictionary_item(
-            Key::Hash(contract_hash),
+        query_dictionary_item(
+            &self.builder,
+            base,
             Some(dict_name.to_string()),
-            key.to_string(),
-        ) {
-            Err(_) => None,
-            Ok(maybe_value) => maybe_value.into_t().unwrap(),
-        }
+            key,
+        ).expect("should be stored value.")
+        .as_cl_value()
+        .expect("should be cl value.")
+        .clone()
+        .into_t()
+        .expect("Wrong type in query result.")
     }
 
     fn query_contract<T: CLTyped + FromBytes>(
@@ -239,8 +262,9 @@ impl AuctionContract {
         contract_hash: [u8; 32],
         name: &str,
     ) -> Option<T> {
-        match self.context.query(
-            self.admin,
+        query(
+            &self.builder,
+            Key::Account(self.admin),
             &[
                 if contract_hash != self.contract_hash {
                     "DragonsNFT_contract".to_string()
@@ -249,17 +273,24 @@ impl AuctionContract {
                 },
                 name.to_string(),
             ],
-        ) {
-            Err(e) => panic!("{:?}", e),
-            Ok(maybe_value) => {
-                let value = maybe_value.into_t().unwrap();
-                Some(value)
-            }
-        }
+        )
     }
 
-    pub fn get_account_balance(&self, account: &AccountHash) -> U512 {
-        self.context
-            .get_balance(self.context.main_purse_address(*account).unwrap().addr())
+    /// Getter function for the balance of an account.
+    fn get_account_balance(&self, account_key: &AccountHash) -> U512 {
+        let account = self
+            .builder
+            .get_account(*account_key)
+            .expect("should get genesis account");
+        self.builder.get_purse_balance(account.main_purse())
+    }
+
+    /// Shorthand to get the balances of all 3 accounts in order.
+    pub fn get_all_accounts_balance(&self) -> (U512, U512, U512) {
+        (
+            self.get_account_balance(&self.admin),
+            self.get_account_balance(&self.ali),
+            self.get_account_balance(&self.bob),
+        )
     }
 }
