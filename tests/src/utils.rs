@@ -1,15 +1,15 @@
 use std::path::PathBuf;
 
 use casper_engine_test_support::{
-    DeployItemBuilder, ExecuteRequestBuilder, WasmTestBuilder, ARG_AMOUNT, DEFAULT_ACCOUNT_ADDR,
-    DEFAULT_PAYMENT, InMemoryWasmTestBuilder,
+    DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
+    DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT,
 };
 use casper_execution_engine::{
     core::engine_state::ExecuteRequest, storage::global_state::in_memory::InMemoryGlobalState,
 };
 use casper_types::{
-    account::AccountHash, bytesrepr::FromBytes, runtime_args, system::mint, CLTyped, Key,
-    RuntimeArgs, U512, StoredValue,
+    account::AccountHash, bytesrepr::FromBytes, runtime_args, system::mint, CLTyped, ContractHash,
+    ContractPackageHash, Key, RuntimeArgs, StoredValue, U512,
 };
 
 pub fn query<T: FromBytes + CLTyped>(
@@ -45,7 +45,14 @@ pub fn fund_account(account: &AccountHash) -> ExecuteRequest {
 
 pub enum DeploySource {
     Code(PathBuf),
-    ByHash { hash: [u8; 32], method: String },
+    ByContractHash {
+        hash: ContractHash,
+        method: String,
+    },
+    ByPackageHash {
+        package_hash: ContractPackageHash,
+        method: String,
+    },
 }
 
 pub fn deploy(
@@ -62,13 +69,22 @@ pub fn deploy(
         .with_authorization_keys(&[*deployer]);
     deploy_builder = match source {
         DeploySource::Code(path) => deploy_builder.with_session_code(path, args),
-        DeploySource::ByHash { hash, method } => {
-            deploy_builder.with_stored_versioned_contract_by_hash(*hash, None, method, args)
+        DeploySource::ByContractHash { hash, method } => {
+            deploy_builder.with_stored_session_hash(*hash, method, args)
         }
+        DeploySource::ByPackageHash {
+            package_hash,
+            method,
+        } => deploy_builder.with_stored_versioned_contract_by_hash(
+            package_hash.value(),
+            None,
+            method,
+            args,
+        ),
     };
 
     let mut execute_request_builder =
-    ExecuteRequestBuilder::from_deploy_item(deploy_builder.build());
+        ExecuteRequestBuilder::from_deploy_item(deploy_builder.build());
     if let Some(ustamp) = block_time {
         execute_request_builder = execute_request_builder.with_block_time(ustamp)
     }

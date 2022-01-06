@@ -89,8 +89,8 @@ pub extern "C" fn call() {
     let (auction_hash, _) = storage::new_locked_contract(
         entry_points,
         Some(auction_named_keys),
-        Some(format!("{}_{}",auction_desig, data::AUCTION_CONTRACT_HASH)),
-        Some(format!("{}_{}",auction_desig, data::AUCTION_ACCESS_TOKEN)),
+        Some(format!("{}_{}", auction_desig, data::AUCTION_CONTRACT_HASH)),
+        Some(format!("{}_{}", auction_desig, data::AUCTION_ACCESS_TOKEN)),
     );
     let auction_key = Key::Hash(auction_hash.value());
     runtime::put_key(
@@ -101,7 +101,7 @@ pub extern "C" fn call() {
         &format!("{}_auction_contract_hash_wrapped", auction_desig),
         storage::new_uref(auction_hash).into(),
     );
-    
+
     // Create purse in the contract's context
     runtime::call_contract::<()>(auction_hash, "init", runtime_args! {});
 
@@ -112,18 +112,27 @@ pub extern "C" fn call() {
             .unwrap_or_revert(),
     );
     // Transfer the NFT ownership to the auction
-
     let mut token_ids = alloc::vec::Vec::new();
     token_ids.push(runtime::get_named_arg::<String>(data::TOKEN_ID));
 
-    runtime::call_versioned_contract(
+    let auction_contract_package_hash = runtime::get_key(&format!(
+        "{}_{}",
+        auction_desig,
+        data::AUCTION_CONTRACT_HASH
+    ))
+    .unwrap_or_revert();
+    runtime::put_key(
+        &format!("{}_auction_contract_package_hash_wrapped", auction_desig),
+        storage::new_uref(ContractPackageHash::new(auction_contract_package_hash.into_hash().unwrap_or_revert())).into(),
+    );
+    runtime::call_versioned_contract::<()>(
         token_contract_hash,
         None,
         "transfer",
         runtime_args! {
-          "sender" => Key::Account(runtime::get_caller()),
-          "recipient" => runtime::get_key(data::AUCTION_CONTRACT_HASH).unwrap_or_revert(),
-          "token_ids" => token_ids,
+            "sender" => Key::Account(runtime::get_caller()),
+            "recipient" => auction_contract_package_hash,
+            "token_ids" => token_ids,
         },
-    )
+    );
 }
