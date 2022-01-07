@@ -12,6 +12,7 @@ casper-execution-engine = "1.4.2"
 casper-types = "1.4.4"
 maplit = "*"
 hex = "*"
+rand = "*"
 
 [lib]
 name = "tests"

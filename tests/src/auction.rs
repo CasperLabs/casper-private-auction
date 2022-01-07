@@ -329,22 +329,18 @@ impl AuctionContract {
 
     pub fn is_finalized(&self) -> bool {
         self.query_contract(self.auction_hash.value(), "finalized")
-            .unwrap()
     }
 
     pub fn get_end(&self) -> u64 {
         self.query_contract(self.auction_hash.value(), "end_time")
-            .unwrap()
     }
 
     pub fn get_winner(&self) -> Option<AccountHash> {
         self.query_contract(self.auction_hash.value(), "current_winner")
-            .unwrap()
     }
 
     pub fn get_winning_bid(&self) -> Option<U512> {
         self.query_contract(self.auction_hash.value(), "winning_bid")
-            .unwrap()
     }
 
     pub fn get_event(&self, contract_hash: [u8; 32], index: u32) -> BTreeMap<String, String> {
@@ -377,7 +373,6 @@ impl AuctionContract {
                 "auction_events_count"
             },
         )
-        .unwrap()
     }
 
     /// Wrapper function for calling an entrypoint on the contract with the access rights of the deployer.
@@ -414,7 +409,7 @@ impl AuctionContract {
         &self,
         contract_hash: [u8; 32],
         name: &str,
-    ) -> Option<T> {
+    ) -> T {
         query(
             &self.builder,
             Key::Account(self.admin),

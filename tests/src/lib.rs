@@ -349,9 +349,8 @@ fn english_auction_bid_early_test() {
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now - 1000);
 }
 
-// Deploying with wrong times reverts with User(9) error
 #[test]
-#[should_panic = "User(18)"]
+#[should_panic = "User(4)"]
 fn auction_bid_no_kyc_token_test() {
     let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
     let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
