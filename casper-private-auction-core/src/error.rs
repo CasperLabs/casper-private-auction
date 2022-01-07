@@ -22,6 +22,7 @@ pub enum AuctionError {
     KYCError = 18,
     BidBelowReserve = 19,
     NewBidLower = 20,
+    InvalidCallStackLength = 21,
 }
 
 impl From<AuctionError> for ApiError {
