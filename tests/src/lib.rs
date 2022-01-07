@@ -34,6 +34,18 @@ fn english_auction_bid_finalize_test() {
 }
 
 #[test]
+fn english_auction_bid_cancel_only_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    assert!(now < auction_contract.get_end());
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1);
+    auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3);
+    auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
+    assert!(auction_contract.is_finalized());
+    assert!(auction_contract.get_winner().is_none());
+}
+
+#[test]
 fn english_auction_bid_cancel_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
@@ -43,12 +55,14 @@ fn english_auction_bid_cancel_test() {
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3);
     auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
     assert!(auction_contract.is_finalized());
+    assert!(auction_contract.get_winner().is_some());
     assert_eq!(auction_contract.ali, auction_contract.get_winner().unwrap());
     assert_eq!(
         U512::from(30000),
         auction_contract.get_winning_bid().unwrap()
     );
 }
+
 #[test]
 fn dutch_auction_bid_finalize_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
@@ -111,7 +125,7 @@ fn english_auction_bid_too_late_test() {
 
 // Trying to bid an amount below the reserve results in User(3) error
 #[test]
-#[should_panic = "User(3)"]
+#[should_panic = "User(19)"]
 fn english_auction_bid_too_low_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);

@@ -33,7 +33,7 @@ impl Auction {
         let auction_purse = AuctionData::get_auction_purse();
         let bid_amount = if let Some(current_bid) = bids.get(&bidder) {
             if bid <= current_bid {
-                runtime::revert(AuctionError::BidTooLow)
+                runtime::revert(AuctionError::NewBidLower)
             }
             bid - current_bid
         } else {
@@ -159,7 +159,7 @@ impl crate::AuctionLogic for Auction {
         let bidder = Self::get_bidder();
         let bid = runtime::get_named_arg::<U512>(crate::data::BID);
         if bid < AuctionData::get_reserve() {
-            runtime::revert(AuctionError::BidTooLow);
+            runtime::revert(AuctionError::BidBelowReserve);
         }
         let bidder_purse = runtime::get_named_arg::<URef>(crate::data::BID_PURSE);
 
