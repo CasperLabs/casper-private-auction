@@ -2,3 +2,4 @@
 /tests/wasm
 Cargo.lock
 *.json
+.idea/

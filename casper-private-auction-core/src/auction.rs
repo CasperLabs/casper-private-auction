@@ -33,7 +33,7 @@ impl Auction {
         let auction_purse = AuctionData::get_auction_purse();
         let bid_amount = if let Some(current_bid) = bids.get(&bidder) {
             if bid <= current_bid {
-                runtime::revert(AuctionError::BidTooLow)
+                runtime::revert(AuctionError::NewBidLower)
             }
             bid - current_bid
         } else {
@@ -55,8 +55,9 @@ impl Auction {
 
     fn get_bidder() -> AccountHash {
         // Figure out who is trying to bid and what their bid is
-        if let Some(CallStackElement::Session { account_hash }) = runtime::get_call_stack().first()
-        {
+        let call_stack = runtime::get_call_stack();
+        // if call_stack.len() == 2 {runtime::revert(AuctionError::InvalidCallStackLenght)}
+        if let Some(CallStackElement::Session { account_hash }) = call_stack.first() {
             *account_hash
         } else {
             runtime::revert(AuctionError::InvalidCaller)
@@ -159,7 +160,7 @@ impl crate::AuctionLogic for Auction {
         let bidder = Self::get_bidder();
         let bid = runtime::get_named_arg::<U512>(crate::data::BID);
         if bid < AuctionData::get_reserve() {
-            runtime::revert(AuctionError::BidTooLow);
+            runtime::revert(AuctionError::BidBelowReserve);
         }
         let bidder_purse = runtime::get_named_arg::<URef>(crate::data::BID_PURSE);
 
