@@ -18,65 +18,9 @@ use utils::{deploy, fund_account, query, DeploySource};
 
 use crate::auction_args::AuctionArgsBuilder;
 
-type Hash = [u8; 32];
-
 pub mod auction;
 pub mod auction_args;
-// pub mod nft;
 pub mod utils;
-
-// #[test]
-// fn kyc_test() {
-//     // deploy contracts
-//     let mut cep47 = nft::CasperCEP47Contract::deploy();
-
-//     let token_id = String::from("custom_token_id");
-//     let mut commissions: BTreeMap<String, String> = BTreeMap::new();
-//     let token_meta = nft::meta::red_dragon();
-//     let admin = cep47.admin.clone();
-//     // mint nft token
-
-//     let mut gauge: BTreeMap<String, String> = BTreeMap::new();
-//     gauge.insert("gauge".to_string(), "is_gaugy".to_string());
-//     let mut warehouse: BTreeMap<String, String> = BTreeMap::new();
-//     warehouse.insert("ware".to_string(), "house".to_string());
-
-//     cep47.call(
-//         &admin,
-//         "mint",
-//         runtime_args! {
-//             "recipient" => Key::Account(admin),
-//             "token_ids" => Some(vec![token_id.to_string()]),
-//             "token_metas" => vec![token_meta.clone()],
-//             "token_gauges" => vec![gauge],
-//             "token_warehouses" => vec![warehouse],
-//             "token_commissions" => vec![commissions],
-//         },
-//     );
-//     // mint kyc token
-//     let mut kyc_token_meta = BTreeMap::new();
-//     kyc_token_meta.insert("status".to_string(), "active".to_string());
-//     let kyc_args = runtime_args! {
-//         "recipient" => Key::Account(cep47.ali),
-//         "token_ids" => Some(vec![cep47.ali.to_string()]),
-//         "token_metas" => vec![kyc_token_meta]
-//     };
-
-//     let mut kyc_deploy = DeployItemBuilder::new()
-//         .with_empty_payment_bytes(runtime_args! {ARG_AMOUNT => *DEFAULT_PAYMENT})
-//         .with_address(admin)
-//         .with_authorization_keys(&[admin])
-//         .with_stored_session_hash(cep47.kyc_hash, "mint", kyc_args)
-//         // .with_stored_versioned_contract_by_hash(cep47.kyc_package_hash, None, "mint", kyc_args)
-//         .build();
-
-//     let mut execute_request = ExecuteRequestBuilder::from_deploy_item(kyc_deploy).build();
-//     let exec = cep47
-//         .builder
-//         .exec(execute_request)
-//         .expect_success()
-//         .commit();
-// }
 
 #[test]
 fn english_auction_bid_finalize_test() {
@@ -139,25 +83,6 @@ fn dutch_auction_bid_finalize_test() {
         auction_contract.get_winning_bid().unwrap()
     );
 }
-
-/*
-pub enum AuctionError {
-    EarlyFinalize = 0,
-    InvalidCaller = 1,
-    LateBid = 2,
-    BidTooLow = 3,
-    AlreadyFinal = 4,
-    BadState = 5,
-    NoBid = 6,
-    LateCancellation = 7,
-    UnknownFormat = 8,
-    InvalidTimes = 9,
-    InvalidPrices = 10,
-    EarlyBid = 11,
-    InvalidBeneficiary = 12,
-    BadKey = 13,
-}
-*/
 
 // Finalizing the auction before it ends results in User(0) error
 #[test]
@@ -288,7 +213,8 @@ fn auction_unknown_format_test() {
         "start_time" => 1,
         "cancellation_time" => 2,
         "end_time" => 3,
-        "name" => "test"
+        "name" => "test",
+        "bidder_count_cap" => 10_u8
     };
 
     let (auction_hash, auction_package) =
@@ -336,7 +262,8 @@ fn auction_bad_times_test() {
         "start_time" => 1000_u64,
         "cancellation_time" => 20_u64,
         "end_time" => 11_u64,
-        "name" => "test"
+        "name" => "test",
+        "bidder_count_cap" => 10_u8
     };
 
     let (auction_hash, auction_package) =
@@ -400,7 +327,8 @@ fn auction_bid_no_kyc_token_test() {
         "start_time" => now+500,
         "cancellation_time" => now+3500,
         "end_time" => now+4000,
-        "name" => "test"
+        "name" => "test",
+        "bidder_count_cap" => 10_u8
     };
 
     let (auction_hash, auction_package) =
@@ -418,4 +346,32 @@ fn auction_bid_no_kyc_token_test() {
         true,
         Some(now + 1500),
     );
+}
+
+#[test]
+fn cancel_auction_test() {
+    // todo: test cancelling the auction
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
+}
+
+#[test]
+#[should_panic = "User(22)"]
+fn cancel_auction_after_bid_test() {
+    // todo: test cancelling the auction
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
+    auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
+}
+
+#[test]
+fn cancel_auction_after_cancelled_bid_test() {
+    // todo: test cancelling the auction
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
+    auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1001);
+    auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1002)
 }

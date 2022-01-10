@@ -32,6 +32,11 @@ pub extern "C" fn finalize() {
 }
 
 #[no_mangle]
+pub extern "C" fn cancel_auction() {
+    Auction::cancel_auction();
+}
+
+#[no_mangle]
 pub extern "C" fn init() {
     if runtime::get_key(data::AUCTION_PURSE).is_none() {
         let purse = system::create_purse();
@@ -64,6 +69,14 @@ pub fn get_entry_points() -> EntryPoints {
 
     entry_points.add_entry_point(EntryPoint::new(
         data::FINALIZE_FUNC,
+        vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+
+    entry_points.add_entry_point(EntryPoint::new(
+        data::CANCEL_AUCTION_FUNC,
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -112,8 +125,7 @@ pub extern "C" fn call() {
             .unwrap_or_revert(),
     );
     // Transfer the NFT ownership to the auction
-    let mut token_ids = alloc::vec::Vec::new();
-    token_ids.push(runtime::get_named_arg::<String>(data::TOKEN_ID));
+    let token_ids = vec![runtime::get_named_arg::<String>(data::TOKEN_ID)];
 
     let auction_contract_package_hash = runtime::get_key(&format!(
         "{}_{}",
@@ -123,7 +135,10 @@ pub extern "C" fn call() {
     .unwrap_or_revert();
     runtime::put_key(
         &format!("{}_auction_contract_package_hash_wrapped", auction_desig),
-        storage::new_uref(ContractPackageHash::new(auction_contract_package_hash.into_hash().unwrap_or_revert())).into(),
+        storage::new_uref(ContractPackageHash::new(
+            auction_contract_package_hash.into_hash().unwrap_or_revert(),
+        ))
+        .into(),
     );
     runtime::call_versioned_contract::<()>(
         token_contract_hash,

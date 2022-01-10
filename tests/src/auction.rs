@@ -16,8 +16,6 @@ use casper_types::{
 };
 use maplit::btreemap;
 
-use crate::Hash;
-
 pub struct AuctionContract {
     pub builder: InMemoryWasmTestBuilder,
     pub auction_hash: ContractHash,
@@ -64,16 +62,12 @@ impl AuctionContract {
         builder.exec(fund_account(&bob)).expect_success().commit();
 
         let (kyc_hash, kyc_package) = Self::deploy_kyc(&mut builder, &admin);
-        println!("kyc_hash {}", kyc_hash);
-        println!("kyc_package {}", kyc_package);
         Self::add_kyc(&mut builder, &kyc_package, &admin, &admin);
         Self::add_kyc(&mut builder, &kyc_package, &admin, &ali);
         Self::add_kyc(&mut builder, &kyc_package, &admin, &bob);
 
         let (nft_hash, nft_package) = Self::deploy_nft(&mut builder, &admin, kyc_package);
 
-        println!("nft_hash {}", nft_hash);
-        println!("nft_package {}", nft_package);
         let token_id = String::from("custom_token_id");
         let token_meta = btreemap! {
             "origin".to_string() => "fire".to_string()
@@ -96,9 +90,6 @@ impl AuctionContract {
 
         let (auction_hash, auction_package) =
             Self::deploy_auction(&mut builder, &admin, auction_args.build());
-
-        println!("auction_hash {}", auction_hash);
-        println!("auction_package {}", auction_package);
         Self {
             builder,
             auction_hash,
@@ -130,7 +121,7 @@ impl AuctionContract {
         let auction_code = PathBuf::from("kyc-contract.wasm");
         deploy(
             builder,
-            &admin,
+            admin,
             &DeploySource::Code(auction_code),
             kyc_args,
             true,
@@ -138,12 +129,12 @@ impl AuctionContract {
         );
 
         let contract_hash = query(
-            &builder,
+            builder,
             Key::Account(*admin),
             &["kyc_contract_hash_wrapped".to_string()],
         );
         let contract_package = query(
-            &builder,
+            builder,
             Key::Account(*admin),
             &["kyc_package_hash_wrapped".to_string()],
         );
@@ -167,7 +158,6 @@ impl AuctionContract {
             "kyc_package_hash" => Key::Hash(kyc_package_hash.value()),
             "contract_name" => "NFT".to_string()
         };
-        println!("kyc_package that nft stored {}",kyc_package_hash);
         let nft_code = PathBuf::from("nft-contract.wasm");
         deploy(
             builder,
@@ -179,12 +169,12 @@ impl AuctionContract {
         );
 
         let contract_hash: ContractHash = query(
-            &builder,
+            builder,
             Key::Account(*admin),
             &["NFT_contract_hash_wrapped".to_string()],
         );
         let contract_package: ContractPackageHash = query(
-            &builder,
+            builder,
             Key::Account(*admin),
             &["NFT_package_hash_wrapped".to_string()],
         );
@@ -199,7 +189,7 @@ impl AuctionContract {
         let auction_code = PathBuf::from("casper-private-auction-installer.wasm");
         deploy(
             builder,
-            &admin,
+            admin,
             &DeploySource::Code(auction_code),
             auction_args,
             true,
@@ -207,12 +197,12 @@ impl AuctionContract {
         );
 
         let contract_hash: ContractHash = query(
-            &builder,
+            builder,
             Key::Account(*admin),
             &["test_auction_contract_hash_wrapped".to_string()],
         );
         let contract_package: ContractPackageHash = query(
-            &builder,
+            builder,
             Key::Account(*admin),
             &["test_auction_contract_package_hash_wrapped".to_string()],
         );
@@ -261,7 +251,7 @@ impl AuctionContract {
         };
         deploy(
             builder,
-            &sender,
+            sender,
             &DeploySource::ByPackageHash {
                 package_hash: *nft_package,
                 method: "mint".to_string(),
@@ -293,7 +283,7 @@ impl AuctionContract {
 
         deploy(
             builder,
-            &admin,
+            admin,
             &DeploySource::ByPackageHash {
                 package_hash: *kyc_package,
                 method: "mint".to_string(),
@@ -308,7 +298,7 @@ impl AuctionContract {
         let session_code = PathBuf::from("bid-purse.wasm");
         deploy(
             &mut self.builder,
-            &bidder,
+            bidder,
             &DeploySource::Code(session_code),
             runtime_args! {
                 "bid" => bid,
@@ -317,6 +307,10 @@ impl AuctionContract {
             true,
             Some(block_time),
         );
+    }
+
+    pub fn cancel_auction(&mut self, caller: &AccountHash, time: u64) {
+        self.call(caller, "cancel_auction", runtime_args! {}, time)
     }
 
     pub fn cancel_bid(&mut self, caller: &AccountHash, time: u64) {
@@ -379,7 +373,7 @@ impl AuctionContract {
     fn call(&mut self, caller: &AccountHash, method: &str, args: RuntimeArgs, time: u64) {
         deploy(
             &mut self.builder,
-            &caller,
+            caller,
             &DeploySource::ByPackageHash {
                 package_hash: self.auction_package,
                 method: method.to_string(),
@@ -405,11 +399,7 @@ impl AuctionContract {
             .expect("Wrong type in query result.")
     }
 
-    fn query_contract<T: CLTyped + FromBytes>(
-        &self,
-        contract_hash: [u8; 32],
-        name: &str,
-    ) -> T {
+    fn query_contract<T: CLTyped + FromBytes>(&self, contract_hash: [u8; 32], name: &str) -> T {
         query(
             &self.builder,
             Key::Account(self.admin),

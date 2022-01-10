@@ -3,7 +3,6 @@ use casper_engine_test_support::{
     DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT, DEFAULT_RUN_GENESIS_REQUEST,
 };
 
-use crate::Hash;
 use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
 use casper_types::{
     account::AccountHash, runtime_args, ContractHash, ContractPackageHash, Key, PublicKey,
@@ -28,6 +27,7 @@ pub struct AuctionArgsBuilder {
     cancellation_time: u64,
     end_time: u64,
     name: String,
+    bidder_count_cap: u8,
 }
 
 impl AuctionArgsBuilder {
@@ -51,6 +51,7 @@ impl AuctionArgsBuilder {
             cancellation_time: 3000,
             end_time: 3500,
             name: "test".to_string(),
+            bidder_count_cap: 10,
         }
     }
 
@@ -98,6 +99,10 @@ impl AuctionArgsBuilder {
         self.end_time = end_time;
     }
 
+    pub fn set_bidder_count_cap(&mut self, bidder_count_cap: u8) {
+        self.bidder_count_cap = bidder_count_cap;
+    }
+
     pub fn build(&self) -> RuntimeArgs {
         runtime_args! {
             "beneficiary_account"=>Key::Account(self.beneficiary_account),
@@ -110,7 +115,8 @@ impl AuctionArgsBuilder {
             "start_time" => self.start_time,
             "cancellation_time" => self.start_time+self.cancellation_time,
             "end_time" => self.start_time+self.end_time,
-            "name" => self.name.clone()
+            "name" => self.name.clone(),
+            "bidder_count_cap" => self.bidder_count_cap
         }
     }
 
@@ -139,6 +145,7 @@ impl Default for AuctionArgsBuilder {
             cancellation_time: 3000,
             end_time: 3500,
             name: "test".to_string(),
+            bidder_count_cap: 10,
         }
     }
 }

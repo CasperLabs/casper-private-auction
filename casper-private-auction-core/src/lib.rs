@@ -25,6 +25,7 @@ pub trait AuctionLogic {
     fn auction_allocate(winner: Option<AccountHash>);
     fn auction_transfer(winner: Option<AccountHash>);
     fn auction_finalize(time_check: bool);
+    fn cancel_auction();
 }
 
 struct Dict {

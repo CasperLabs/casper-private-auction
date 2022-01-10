@@ -9,10 +9,20 @@ use casper_contract::unwrap_or_revert::UnwrapOrRevert;
 use casper_types::Key;
 use casper_types::{account::AccountHash, U512};
 pub enum AuctionEvent {
-    Bid { bidder: AccountHash, bid: U512 },
-    SetWinner { bidder: Option<AccountHash>, bid: Option<U512> },
-    BidCancelled { bidder: AccountHash },
-    Finalized { winner: Option<(AccountHash, U512)> },
+    Bid {
+        bidder: AccountHash,
+        bid: U512,
+    },
+    SetWinner {
+        bidder: Option<AccountHash>,
+        bid: Option<U512>,
+    },
+    BidCancelled {
+        bidder: AccountHash,
+    },
+    Finalized {
+        winner: Option<(AccountHash, U512)>,
+    },
 }
 
 pub fn emit(event: &AuctionEvent) {

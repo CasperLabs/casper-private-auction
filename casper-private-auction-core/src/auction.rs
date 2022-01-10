@@ -249,4 +249,17 @@ impl crate::AuctionLogic for Auction {
         };
         emit(&AuctionEvent::Finalized { winner })
     }
+
+    fn cancel_auction() {
+        if AuctionData::get_token_owner() != Key::Account(runtime::get_caller()) {
+            runtime::revert(AuctionError::InvalidCaller);
+        }
+        if !AuctionData::get_bids().is_empty() && AuctionData::get_winner().is_some() {
+            runtime::revert(AuctionError::CannotCancelAuction);
+        }
+
+        Self::auction_allocate(None);
+        Self::auction_transfer(None);
+        AuctionData::set_finalized();
+    }
 }
