@@ -42,13 +42,14 @@ pub const BID: &str = "bid";
 pub const BID_PURSE: &str = "bid_purse";
 pub const CANCEL_FUNC: &str = "cancel_bid";
 pub const FINALIZE_FUNC: &str = "finalize";
+pub const CANCEL_AUCTION_FUNC: &str = "cancel_auction";
 pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_package_hash";
 pub const AUCTION_ACCESS_TOKEN: &str = "auction_access_token";
 pub const EVENTS: &str = "auction_events";
 pub const EVENTS_COUNT: &str = "auction_events_count";
 pub const COMMISSIONS: &str = "commissions";
 pub const KYC_HASH: &str = "kyc_package_hash";
-
+pub const BIDDER_NUMBER_CAP: &str = "bidder_count_cap";
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
         {
@@ -84,6 +85,7 @@ impl AuctionData {
     pub fn get_token_owner() -> Key {
         read_named_key_value::<Key>(OWNER)
     }
+
     pub fn get_nft_hash() -> ContractPackageHash {
         ContractPackageHash::new(
             read_named_key_value::<Key>(NFT_HASH)
@@ -99,8 +101,8 @@ impl AuctionData {
         write_named_key_value(WINNER, winner);
         write_named_key_value(PRICE, bid);
         emit(&AuctionEvent::SetWinner {
-            bidder: winner.unwrap_or_revert(),
-            bid: bid.unwrap_or_revert(),
+            bidder: winner,
+            bid,
         })
     }
 
@@ -200,6 +202,10 @@ impl AuctionData {
 
     pub fn get_commissions() -> BTreeMap<String, String> {
         read_named_key_value(COMMISSIONS)
+    }
+
+    pub fn get_bidder_count_cap() -> u8 {
+        read_named_key_value(BIDDER_NUMBER_CAP)
     }
 
     pub fn get_commission_shares() -> BTreeMap<AccountHash, u16> {
@@ -311,10 +317,9 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let (start_time, cancellation_time, end_time): (u64, u64, u64) = auction_times_match();
     let winning_bid: Option<U512> = None;
     let current_winner: Option<Key> = None;
-    // Consider optimizing away for Dutch auctions
     let bids: BTreeMap<AccountHash, U512> = BTreeMap::new();
     let finalized = false;
-
+    let bidder_count_cap = runtime::get_named_arg::<u8>(BIDDER_NUMBER_CAP);
     // Get commissions from nft
 
     let commissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
@@ -349,7 +354,8 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (BIDS, bids),
         (FINALIZED, finalized),
         (EVENTS_COUNT, 0_u32),
-        (COMMISSIONS, commissions)
+        (COMMISSIONS, commissions),
+        (BIDDER_NUMBER_CAP, bidder_count_cap)
     );
     add_empty_dict(&mut named_keys, EVENTS);
     named_keys

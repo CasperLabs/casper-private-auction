@@ -33,7 +33,7 @@ impl Auction {
         let auction_purse = AuctionData::get_auction_purse();
         let bid_amount = if let Some(current_bid) = bids.get(&bidder) {
             if bid <= current_bid {
-                runtime::revert(AuctionError::BidTooLow)
+                runtime::revert(AuctionError::NewBidLower)
             }
             bid - current_bid
         } else {
@@ -55,8 +55,9 @@ impl Auction {
 
     fn get_bidder() -> AccountHash {
         // Figure out who is trying to bid and what their bid is
-        if let Some(CallStackElement::Session { account_hash }) = runtime::get_call_stack().first()
-        {
+        let call_stack = runtime::get_call_stack();
+        // if call_stack.len() == 2 {runtime::revert(AuctionError::InvalidCallStackLenght)}
+        if let Some(CallStackElement::Session { account_hash }) = call_stack.first() {
             *account_hash
         } else {
             runtime::revert(AuctionError::InvalidCaller)
@@ -148,12 +149,18 @@ impl crate::AuctionLogic for Auction {
     }
 
     fn auction_bid() {
+        if !AuctionData::is_auction_live() || AuctionData::is_finalized() {
+            runtime::revert(AuctionError::BadState)
+        }
+        if !AuctionData::is_kyc_proved() {
+            runtime::revert(AuctionError::KYCError);
+        }
         // We do not check times here because we do that in Auction::add_bid
         // Figure out who is trying to bid and what their bid is
         let bidder = Self::get_bidder();
         let bid = runtime::get_named_arg::<U512>(crate::data::BID);
         if bid < AuctionData::get_reserve() {
-            runtime::revert(AuctionError::BidTooLow);
+            runtime::revert(AuctionError::BidBelowReserve);
         }
         let bidder_purse = runtime::get_named_arg::<URef>(crate::data::BID_PURSE);
 
@@ -241,5 +248,18 @@ impl crate::AuctionLogic for Auction {
             }
         };
         emit(&AuctionEvent::Finalized { winner })
+    }
+
+    fn cancel_auction() {
+        if AuctionData::get_token_owner() != Key::Account(runtime::get_caller()) {
+            runtime::revert(AuctionError::InvalidCaller);
+        }
+        if !AuctionData::get_bids().is_empty() && AuctionData::get_winner().is_some() {
+            runtime::revert(AuctionError::CannotCancelAuction);
+        }
+
+        Self::auction_allocate(None);
+        Self::auction_transfer(None);
+        AuctionData::set_finalized();
     }
 }

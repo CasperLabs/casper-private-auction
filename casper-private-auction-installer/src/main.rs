@@ -2,7 +2,7 @@
 #![no_main]
 
 extern crate alloc;
-use alloc::{string::String, vec};
+use alloc::{format, string::String, vec};
 use casper_contract::{
     contract_api::{
         runtime::{self},
@@ -29,6 +29,11 @@ pub extern "C" fn cancel_bid() {
 #[no_mangle]
 pub extern "C" fn finalize() {
     Auction::auction_finalize(true);
+}
+
+#[no_mangle]
+pub extern "C" fn cancel_auction() {
+    Auction::cancel_auction();
 }
 
 #[no_mangle]
@@ -71,6 +76,14 @@ pub fn get_entry_points() -> EntryPoints {
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
+        data::CANCEL_AUCTION_FUNC,
+        vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+
+    entry_points.add_entry_point(EntryPoint::new(
         "init",
         vec![],
         CLType::Unit,
@@ -85,18 +98,23 @@ pub fn get_entry_points() -> EntryPoints {
 pub extern "C" fn call() {
     let entry_points = get_entry_points();
     let auction_named_keys = data::create_auction_named_keys();
+    let auction_desig: String = runtime::get_named_arg("name");
     let (auction_hash, _) = storage::new_locked_contract(
         entry_points,
         Some(auction_named_keys),
-        Some(String::from(data::AUCTION_CONTRACT_HASH)),
-        Some(String::from(data::AUCTION_ACCESS_TOKEN)),
+        Some(format!("{}_{}", auction_desig, data::AUCTION_CONTRACT_HASH)),
+        Some(format!("{}_{}", auction_desig, data::AUCTION_ACCESS_TOKEN)),
     );
     let auction_key = Key::Hash(auction_hash.value());
-    runtime::put_key("auction_contract_hash", auction_key);
     runtime::put_key(
-        "auction_contract_hash_wrapped",
+        &format!("{}_auction_contract_hash", auction_desig),
+        auction_key,
+    );
+    runtime::put_key(
+        &format!("{}_auction_contract_hash_wrapped", auction_desig),
         storage::new_uref(auction_hash).into(),
     );
+
     // Create purse in the contract's context
     runtime::call_contract::<()>(auction_hash, "init", runtime_args! {});
 
@@ -107,18 +125,29 @@ pub extern "C" fn call() {
             .unwrap_or_revert(),
     );
     // Transfer the NFT ownership to the auction
+    let token_ids = vec![runtime::get_named_arg::<String>(data::TOKEN_ID)];
 
-    let mut token_ids = alloc::vec::Vec::new();
-    token_ids.push(runtime::get_named_arg::<String>(data::TOKEN_ID));
-
-    runtime::call_versioned_contract(
+    let auction_contract_package_hash = runtime::get_key(&format!(
+        "{}_{}",
+        auction_desig,
+        data::AUCTION_CONTRACT_HASH
+    ))
+    .unwrap_or_revert();
+    runtime::put_key(
+        &format!("{}_auction_contract_package_hash_wrapped", auction_desig),
+        storage::new_uref(ContractPackageHash::new(
+            auction_contract_package_hash.into_hash().unwrap_or_revert(),
+        ))
+        .into(),
+    );
+    runtime::call_versioned_contract::<()>(
         token_contract_hash,
         None,
         "transfer",
         runtime_args! {
-          "sender" => Key::Account(runtime::get_caller()),
-          "recipient" => runtime::get_key(data::AUCTION_CONTRACT_HASH).unwrap_or_revert(),
-          "token_ids" => token_ids,
+            "sender" => Key::Account(runtime::get_caller()),
+            "recipient" => auction_contract_package_hash,
+            "token_ids" => token_ids,
         },
-    )
+    );
 }

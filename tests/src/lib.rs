@@ -1,21 +1,26 @@
 #![allow(unused)]
-use std::{collections::BTreeMap, time::Duration};
+use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
+use auction::AuctionContract;
 use casper_contract::contract_api::runtime;
 use casper_engine_test_support::{
-    internal::TIMESTAMP_MILLIS_INCREMENT, Code, Hash, SessionBuilder, TestContext,
-    TestContextBuilder,
+    DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
+    DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT, DEFAULT_RUN_GENESIS_REQUEST,
 };
+
+use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
 use casper_types::{
-    account::AccountHash, bytesrepr::FromBytes, runtime_args, CLTyped, ContractHash,
+    account::AccountHash, bytesrepr::FromBytes, runtime_args, system::mint, CLTyped, ContractHash,
     ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
 };
+use maplit::btreemap;
+use utils::{deploy, fund_account, query, DeploySource};
 
 use crate::auction_args::AuctionArgsBuilder;
 
 pub mod auction;
 pub mod auction_args;
-pub mod nft;
+pub mod utils;
 
 #[test]
 fn english_auction_bid_finalize_test() {
@@ -34,6 +39,18 @@ fn english_auction_bid_finalize_test() {
 }
 
 #[test]
+fn english_auction_bid_cancel_only_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    assert!(now < auction_contract.get_end());
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1);
+    auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3);
+    auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
+    assert!(auction_contract.is_finalized());
+    assert!(auction_contract.get_winner().is_none());
+}
+
+#[test]
 fn english_auction_bid_cancel_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
@@ -43,19 +60,21 @@ fn english_auction_bid_cancel_test() {
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3);
     auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
     assert!(auction_contract.is_finalized());
+    assert!(auction_contract.get_winner().is_some());
     assert_eq!(auction_contract.ali, auction_contract.get_winner().unwrap());
     assert_eq!(
         U512::from(30000),
         auction_contract.get_winning_bid().unwrap()
     );
 }
+
 #[test]
 fn dutch_auction_bid_finalize_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_starting_price(Some(U512::from(40000)));
     auction_args.set_dutch();
-    let mut auction_contract = auction::AuctionContract::deploy(auction_args);
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     assert!(auction_contract.is_finalized());
     assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
@@ -64,25 +83,6 @@ fn dutch_auction_bid_finalize_test() {
         auction_contract.get_winning_bid().unwrap()
     );
 }
-
-/*
-pub enum AuctionError {
-    EarlyFinalize = 0,
-    InvalidCaller = 1,
-    LateBid = 2,
-    BidTooLow = 3,
-    AlreadyFinal = 4,
-    BadState = 5,
-    NoBid = 6,
-    LateCancellation = 7,
-    UnknownFormat = 8,
-    InvalidTimes = 9,
-    InvalidPrices = 10,
-    EarlyBid = 11,
-    InvalidBeneficiary = 12,
-    BadKey = 13,
-}
-*/
 
 // Finalizing the auction before it ends results in User(0) error
 #[test]
@@ -111,11 +111,11 @@ fn english_auction_bid_too_late_test() {
 
 // Trying to bid an amount below the reserve results in User(3) error
 #[test]
-#[should_panic = "User(3)"]
+#[should_panic = "User(19)"]
 fn english_auction_bid_too_low_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
-    auction_contract.bid(&auction_contract.bob.clone(), U512::from(1), now + 10000);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(1), now + 1000);
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn dutch_auction_bid_too_low_test() {
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_starting_price(Some(U512::from(40000)));
     auction_args.set_dutch();
-    let mut auction_contract = auction::AuctionContract::deploy(auction_args);
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
 }
 
@@ -149,7 +149,7 @@ fn dutch_auction_already_taken_test() {
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_starting_price(Some(U512::from(40000)));
     auction_args.set_dutch();
-    let mut auction_contract = auction::AuctionContract::deploy(auction_args);
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1001);
 }
@@ -176,32 +176,36 @@ fn english_auction_bid_late_cancel_test() {
 #[test]
 #[should_panic = "User(8)"]
 fn auction_unknown_format_test() {
-    let mut cep47 = nft::CasperCEP47Contract::deploy();
-    let token_id = String::from("custom_token_id");
-    let token_meta = nft::meta::red_dragon();
-    let mut commissions = BTreeMap::new();
-    cep47.mint(
-        &Key::Account(cep47.admin),
-        &token_id,
-        &token_meta,
-        &(cep47.admin.clone()),
-        commissions,
-    );
+    let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
+    let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
+    let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
-    let nft::CasperCEP47Contract {
-        mut context,
-        hash,
-        kyc_hash,
-        kyc_package_hash,
-        nft_package,
-        admin,
-        ali,
-        bob,
-    } = cep47;
+    let admin_pk: PublicKey = (&admin_secret).into();
+    let admin = admin_pk.to_account_hash();
+    let ali_pk: PublicKey = (&ali_secret).into();
+    let ali = ali_pk.to_account_hash();
+    let bob_pk: PublicKey = (&bob_secret).into();
+    let bob = bob_pk.to_account_hash();
+
+    let mut builder = InMemoryWasmTestBuilder::default();
+    builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+    builder.exec(fund_account(&admin)).expect_success().commit();
+    builder.exec(fund_account(&ali)).expect_success().commit();
+    builder.exec(fund_account(&bob)).expect_success().commit();
+
+    let (kyc_hash, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
+
+    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &admin);
+    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &ali);
+    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &bob);
+
+    let (nft_hash, nft_package) = AuctionContract::deploy_nft(&mut builder, &admin, kyc_package);
+    let token_id = String::from("custom_token_id");
+
     let auction_args = runtime_args! {
         "beneficiary_account"=>Key::Account(admin),
-        "token_contract_hash"=>Key::Hash(nft_package),
-        "kyc_package_hash" => Key::Hash(kyc_package_hash),
+        "token_contract_hash"=>Key::Hash(nft_package.value()),
+        "kyc_package_hash" => Key::Hash(kyc_package.value()),
         "format"=> "WOLOLO",
         "starting_price"=> None::<U512>,
         "reserve_price"=>U512::from(300),
@@ -209,45 +213,48 @@ fn auction_unknown_format_test() {
         "start_time" => 1,
         "cancellation_time" => 2,
         "end_time" => 3,
+        "name" => "test",
+        "bidder_count_cap" => 10_u8
     };
-    let session_code = Code::from("casper-private-auction-installer.wasm");
-    let session = SessionBuilder::new(session_code, auction_args)
-        .with_address(admin)
-        .with_authorization_keys(&[admin])
-        .with_block_time(0)
-        .build();
-    context.run(session);
+
+    let (auction_hash, auction_package) =
+        AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
 }
 
 // Deploying with wrong times reverts with User(9) error
 #[test]
 #[should_panic = "User(9)"]
 fn auction_bad_times_test() {
-    let mut cep47 = nft::CasperCEP47Contract::deploy();
+    let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
+    let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
+    let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
+
+    let admin_pk: PublicKey = (&admin_secret).into();
+    let admin = admin_pk.to_account_hash();
+    let ali_pk: PublicKey = (&ali_secret).into();
+    let ali = ali_pk.to_account_hash();
+    let bob_pk: PublicKey = (&bob_secret).into();
+    let bob = bob_pk.to_account_hash();
+
+    let mut builder = InMemoryWasmTestBuilder::default();
+    builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+    builder.exec(fund_account(&admin)).expect_success().commit();
+    builder.exec(fund_account(&ali)).expect_success().commit();
+    builder.exec(fund_account(&bob)).expect_success().commit();
+
+    let (kyc_hash, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
+
+    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &admin);
+    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &ali);
+    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &bob);
+
+    let (nft_hash, nft_package) = AuctionContract::deploy_nft(&mut builder, &admin, kyc_package);
     let token_id = String::from("custom_token_id");
-    let token_meta = nft::meta::red_dragon();
-    let mut commissions = BTreeMap::new();
-    cep47.mint(
-        &Key::Account(cep47.admin),
-        &token_id,
-        &token_meta,
-        &(cep47.admin.clone()),
-        commissions,
-    );
-    let nft::CasperCEP47Contract {
-        mut context,
-        hash,
-        kyc_hash,
-        kyc_package_hash,
-        nft_package,
-        admin,
-        ali,
-        bob,
-    } = cep47;
+
     let auction_args = runtime_args! {
         "beneficiary_account"=>Key::Account(admin),
-        "token_contract_hash"=>Key::Hash(nft_package),
-        "kyc_package_hash" => Key::Hash(kyc_package_hash),
+        "token_contract_hash"=>Key::Hash(nft_package.value()),
+        "kyc_package_hash" => Key::Hash(kyc_package.value()),
         "format"=> "ENGLISH",
         "starting_price"=> None::<U512>,
         "reserve_price"=>U512::from(300),
@@ -255,14 +262,12 @@ fn auction_bad_times_test() {
         "start_time" => 1000_u64,
         "cancellation_time" => 20_u64,
         "end_time" => 11_u64,
+        "name" => "test",
+        "bidder_count_cap" => 10_u8
     };
-    let session_code = Code::from("casper-private-auction-installer.wasm");
-    let session = SessionBuilder::new(session_code, auction_args)
-        .with_address(admin)
-        .with_authorization_keys(&[admin])
-        .with_block_time(0)
-        .build();
-    context.run(session);
+
+    let (auction_hash, auction_package) =
+        AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
 }
 
 // Any combination of bad prices on auction deployment returns User(10)
@@ -273,7 +278,7 @@ fn dutch_auction_no_starting_price_test() {
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_starting_price(None);
     auction_args.set_dutch();
-    let mut auction_contract = auction::AuctionContract::deploy(auction_args);
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
 }
 
@@ -285,36 +290,36 @@ fn english_auction_bid_early_test() {
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now - 1000);
 }
 
-// Deploying with wrong times reverts with User(9) error
 #[test]
-#[should_panic = "User(18)"]
+#[should_panic = "User(4)"]
 fn auction_bid_no_kyc_token_test() {
-    let mut cep47 = nft::CasperCEP47Contract::deploy();
+    let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
+    let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
+    let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
+
+    let admin_pk: PublicKey = (&admin_secret).into();
+    let admin = admin_pk.to_account_hash();
+    let ali_pk: PublicKey = (&ali_secret).into();
+    let ali = ali_pk.to_account_hash();
+    let bob_pk: PublicKey = (&bob_secret).into();
+    let bob = bob_pk.to_account_hash();
+
+    let mut builder = InMemoryWasmTestBuilder::default();
+    builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+    builder.exec(fund_account(&admin)).expect_success().commit();
+    builder.exec(fund_account(&ali)).expect_success().commit();
+    builder.exec(fund_account(&bob)).expect_success().commit();
+
+    let (kyc_hash, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
+
+    let (nft_hash, nft_package) = AuctionContract::deploy_nft(&mut builder, &admin, kyc_package);
     let token_id = String::from("custom_token_id");
-    let token_meta = nft::meta::red_dragon();
-    let mut commissions = BTreeMap::new();
-    cep47.mint(
-        &Key::Account(cep47.admin),
-        &token_id,
-        &token_meta,
-        &(cep47.admin.clone()),
-        commissions,
-    );
-    let nft::CasperCEP47Contract {
-        mut context,
-        hash,
-        kyc_hash,
-        kyc_package_hash,
-        nft_package,
-        admin,
-        ali,
-        bob,
-    } = cep47;
+
     let now: u64 = AuctionArgsBuilder::get_now_u64();
     let auction_args = runtime_args! {
         "beneficiary_account"=>Key::Account(admin),
-        "token_contract_hash"=>Key::Hash(nft_package),
-        "kyc_package_hash" => Key::Hash(kyc_package_hash),
+        "token_contract_hash"=>Key::Hash(nft_package.value()),
+        "kyc_package_hash" => Key::Hash(kyc_package.value()),
         "format"=> "ENGLISH",
         "starting_price"=> None::<U512>,
         "reserve_price"=>U512::from(300),
@@ -322,32 +327,51 @@ fn auction_bid_no_kyc_token_test() {
         "start_time" => now+500,
         "cancellation_time" => now+3500,
         "end_time" => now+4000,
+        "name" => "test",
+        "bidder_count_cap" => 10_u8
     };
-    //deploy auction
-    let session_code = Code::from("casper-private-auction-installer.wasm");
-    let session = SessionBuilder::new(session_code, auction_args)
-        .with_address(admin)
-        .with_authorization_keys(&[admin])
-        .with_block_time(0)
-        .build();
-    context.run(session);
-    let contract_hash: Hash = context
-        .query(admin, &["auction_contract_hash_wrapped".into()])
-        .unwrap()
-        .into_t()
-        .unwrap();
+
+    let (auction_hash, auction_package) =
+        AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
     //bid
-    let session_code = Code::from("bid-purse.wasm");
-    let session = SessionBuilder::new(
-        session_code,
+    let session_code = PathBuf::from("bid-purse.wasm");
+    deploy(
+        &mut builder,
+        &admin,
+        &DeploySource::Code(session_code),
         runtime_args! {
             "bid" => U512::from(40000),
-            "auction_contract" => contract_hash
+            "auction_contract" => auction_hash
         },
-    )
-    .with_address(ali)
-    .with_authorization_keys(&[ali])
-    .with_block_time(now + 1500)
-    .build();
-    context.run(session);
+        true,
+        Some(now + 1500),
+    );
+}
+
+#[test]
+fn cancel_auction_test() {
+    // todo: test cancelling the auction
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
+}
+
+#[test]
+#[should_panic = "User(22)"]
+fn cancel_auction_after_bid_test() {
+    // todo: test cancelling the auction
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
+    auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
+}
+
+#[test]
+fn cancel_auction_after_cancelled_bid_test() {
+    // todo: test cancelling the auction
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
+    auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1001);
+    auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1002)
 }
