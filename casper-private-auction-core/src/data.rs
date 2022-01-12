@@ -36,7 +36,6 @@ pub const RESERVE: &str = "reserve_price";
 pub const START_PRICE: &str = "starting_price";
 pub const PRICE: &str = "winning_bid";
 pub const WINNER: &str = "current_winner";
-pub const BIDS: &str = "bids";
 pub const FINALIZED: &str = "finalized";
 pub const BID: &str = "bid";
 pub const BID_PURSE: &str = "bid_purse";
@@ -326,7 +325,6 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let (start_time, cancellation_time, end_time): (u64, u64, u64) = auction_times_match();
     let winning_bid: Option<U512> = None;
     let current_winner: Option<Key> = None;
-    let bids: BTreeMap<AccountHash, U512> = BTreeMap::new();
     let finalized = false;
     let bidder_count_cap = runtime::get_named_arg::<Option<u64>>(BIDDER_NUMBER_CAP);
     // Get commissions from nft
@@ -362,7 +360,6 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (RESERVE, reserve_price),
         (PRICE, winning_bid),
         (WINNER, current_winner),
-        (BIDS, bids),
         (FINALIZED, finalized),
         (EVENTS_COUNT, 0_u32),
         (COMMISSIONS, commissions),
