@@ -24,6 +24,7 @@ pub enum AuctionError {
     NewBidLower = 20,
     InvalidCallStackLength = 21,
     CannotCancelAuction = 22,
+    DisallowedMiddleware = 23,
 }
 
 impl From<AuctionError> for ApiError {

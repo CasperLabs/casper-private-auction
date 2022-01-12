@@ -1,6 +1,6 @@
 use casper_contract::{
     contract_api::{
-        runtime::{self},
+        runtime::{self, get_call_stack},
         system,
     },
     unwrap_or_revert::UnwrapOrRevert,
@@ -154,6 +154,9 @@ impl crate::AuctionLogic for Auction {
         }
         if !AuctionData::is_kyc_proved() {
             runtime::revert(AuctionError::KYCError);
+        }
+        if get_call_stack().len() != 2{
+            runtime::revert(AuctionError::DisallowedMiddleware);
         }
         // We do not check times here because we do that in Auction::add_bid
         // Figure out who is trying to bid and what their bid is
