@@ -232,14 +232,14 @@ impl Bids {
     }
 
     /// Returns the account hash of the lowest bidder if the new bid is higher
-    pub fn get_spot(&self, new_item: U512) -> Option<AccountHash> {
+    pub fn get_spot(&self, new_item: U512) -> Option<(AccountHash, U512)> {
         let mut bidders = Vec::from_iter(self.to_map());
         bidders.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
         let (lowest_bidder, lowest_bid) = bidders
             .pop()
             .unwrap_or_revert_with(AuctionError::UnreachableDeadEnd);
         if lowest_bid < new_item {
-            Some(lowest_bidder)
+            Some((lowest_bidder, lowest_bid))
         } else {
             None
         }

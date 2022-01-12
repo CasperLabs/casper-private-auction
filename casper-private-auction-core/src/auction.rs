@@ -21,7 +21,7 @@ use crate::{
 pub struct Auction;
 
 impl Auction {
-    fn add_bid(bidder: AccountHash, bidder_purse: URef, bid: U512) {
+    fn add_bid(bidder: AccountHash, bidder_purse: URef, new_bid: U512) {
         if !AuctionData::is_auction_live() || AuctionData::is_finalized() {
             runtime::revert(AuctionError::BadState)
         }
@@ -30,27 +30,34 @@ impl Auction {
         }
         // Get the existing bid, if any
         let mut bids = AuctionData::get_bids();
+        let auction_purse = AuctionData::get_auction_purse();
         if bids.get(&bidder).is_none() {
             if let Some(bidder_cap) = AuctionData::get_bidder_count_cap() {
                 if bidder_cap <= bids.len() {
-                    if let Some(lowest_bidder) = bids.get_spot(bid) {
+                    if let Some((lowest_bidder, lowest_bid)) = bids.get_spot(new_bid) {
                         bids.remove_by_key(&lowest_bidder);
+                        system::transfer_from_purse_to_account(
+                            auction_purse,
+                            lowest_bidder,
+                            lowest_bid,
+                            None,
+                        )
+                        .unwrap_or_revert();
                     }
                 }
             }
         }
-        let auction_purse = AuctionData::get_auction_purse();
         let bid_amount = if let Some(current_bid) = bids.get(&bidder) {
-            if bid <= current_bid {
+            if new_bid <= current_bid {
                 runtime::revert(AuctionError::NewBidLower)
             }
-            bid - current_bid
+            new_bid - current_bid
         } else {
-            bid
+            new_bid
         };
         system::transfer_from_purse_to_purse(bidder_purse, auction_purse, bid_amount, None)
             .unwrap_or_revert();
-        bids.replace(&bidder, bid);
+        bids.replace(&bidder, new_bid);
     }
 
     fn find_new_winner() -> Option<(AccountHash, U512)> {
