@@ -401,16 +401,13 @@ fn english_increase_time_test() {
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_auction_timer_extension(Some(10000));
     let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
-    assert_eq!(auction_contract.get_end(), now+4000);
+    assert_eq!(auction_contract.get_end(), now + 4000);
 
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
-    assert_eq!(auction_contract.get_end(), now+14000);
+    assert_eq!(auction_contract.get_end(), now + 14000);
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 12999);
     auction_contract.finalize(&auction_contract.admin.clone(), now + 14000);
     assert!(auction_contract.is_finalized());
     assert_eq!(None, auction_contract.get_winner());
-    assert_eq!(
-        None,
-        auction_contract.get_winning_bid()
-    );
+    assert_eq!(None, auction_contract.get_winning_bid());
 }

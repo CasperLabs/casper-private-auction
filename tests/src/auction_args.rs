@@ -28,7 +28,7 @@ pub struct AuctionArgsBuilder {
     end_time: u64,
     name: String,
     bidder_count_cap: Option<u64>,
-    auction_timer_extension: Option<u64>
+    auction_timer_extension: Option<u64>,
 }
 
 impl AuctionArgsBuilder {
@@ -53,7 +53,7 @@ impl AuctionArgsBuilder {
             end_time: 3500,
             name: "test".to_string(),
             bidder_count_cap: None,
-            auction_timer_extension: None
+            auction_timer_extension: None,
         }
     }
 
@@ -153,7 +153,7 @@ impl Default for AuctionArgsBuilder {
             end_time: 3500,
             name: "test".to_string(),
             bidder_count_cap: None,
-            auction_timer_extension: None
+            auction_timer_extension: None,
         }
     }
 }

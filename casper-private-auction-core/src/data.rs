@@ -265,14 +265,13 @@ impl AuctionData {
         )
     }
 
-    pub fn increase_auction_times(){
+    pub fn increase_auction_times() {
         if let Some(increment) = read_named_key_value::<Option<u64>>(AUCTION_TIMER_EXTENSION) {
-            write_named_key_value(END,AuctionData::get_end()+increment);
-            write_named_key_value(CANCEL,AuctionData::get_cancel_time()+increment);
+            write_named_key_value(END, AuctionData::get_end() + increment);
+            write_named_key_value(CANCEL, AuctionData::get_cancel_time() + increment);
         }
     }
 }
-
 
 // TODO: Rewrite to avoid the match guard
 fn auction_times_match() -> (u64, u64, u64) {
