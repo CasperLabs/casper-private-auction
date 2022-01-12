@@ -201,6 +201,8 @@ impl crate::AuctionLogic for Auction {
                 AuctionData::set_winner(Some(bidder), Some(bid));
             }
         }
+
+        AuctionData::increase_auction_times();
         emit(&AuctionEvent::Bid { bidder, bid })
     }
 

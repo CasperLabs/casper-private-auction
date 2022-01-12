@@ -214,7 +214,8 @@ fn auction_unknown_format_test() {
         "cancellation_time" => 2,
         "end_time" => 3,
         "name" => "test",
-        "bidder_count_cap" => Some(10_u64)
+        "bidder_count_cap" => Some(10_u64),
+        "auction_timer_extension" => None::<u64>
     };
 
     let (auction_hash, auction_package) =
@@ -263,7 +264,8 @@ fn auction_bad_times_test() {
         "cancellation_time" => 20_u64,
         "end_time" => 11_u64,
         "name" => "test",
-        "bidder_count_cap" => Some(10_u64)
+        "bidder_count_cap" => Some(10_u64),
+        "auction_timer_extension" => None::<u64>
     };
 
     let (auction_hash, auction_package) =
@@ -328,7 +330,8 @@ fn auction_bid_no_kyc_token_test() {
         "cancellation_time" => now+3500,
         "end_time" => now+4000,
         "name" => "test",
-        "bidder_count_cap" => Some(10_u64)
+        "bidder_count_cap" => Some(10_u64),
+        "auction_timer_extension" => None::<u64>
     };
 
     let (auction_hash, auction_package) =
@@ -389,5 +392,25 @@ fn english_auction_bidder_count_limit_test() {
     assert_eq!(
         U512::from(40000),
         auction_contract.get_winning_bid().unwrap()
+    );
+}
+
+#[test]
+fn english_increase_time_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    auction_args.set_auction_timer_extension(Some(10000));
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    assert_eq!(auction_contract.get_end(), now+4000);
+
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
+    assert_eq!(auction_contract.get_end(), now+14000);
+    auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 12999);
+    auction_contract.finalize(&auction_contract.admin.clone(), now + 14000);
+    assert!(auction_contract.is_finalized());
+    assert_eq!(None, auction_contract.get_winner());
+    assert_eq!(
+        None,
+        auction_contract.get_winning_bid()
     );
 }

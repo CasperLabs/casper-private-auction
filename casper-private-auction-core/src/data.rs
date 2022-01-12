@@ -50,6 +50,8 @@ pub const EVENTS_COUNT: &str = "auction_events_count";
 pub const COMMISSIONS: &str = "commissions";
 pub const KYC_HASH: &str = "kyc_package_hash";
 pub const BIDDER_NUMBER_CAP: &str = "bidder_count_cap";
+pub const AUCTION_TIMER_EXTENSION: &str = "auction_timer_extension";
+
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
         {
@@ -262,7 +264,15 @@ impl AuctionData {
             },
         )
     }
+
+    pub fn increase_auction_times(){
+        if let Some(increment) = read_named_key_value::<Option<u64>>(AUCTION_TIMER_EXTENSION) {
+            write_named_key_value(END,AuctionData::get_end()+increment);
+            write_named_key_value(CANCEL,AuctionData::get_cancel_time()+increment);
+        }
+    }
 }
+
 
 // TODO: Rewrite to avoid the match guard
 fn auction_times_match() -> (u64, u64, u64) {
@@ -337,6 +347,8 @@ pub fn create_auction_named_keys() -> NamedKeys {
         None => BTreeMap::new(),
     };
 
+    let auction_timer_extension = runtime::get_named_arg::<Option<u64>>(AUCTION_TIMER_EXTENSION);
+
     let mut named_keys = named_keys!(
         (OWNER, token_owner),
         (BENEFICIARY_ACCOUNT, beneficiary_account),
@@ -355,7 +367,8 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (FINALIZED, finalized),
         (EVENTS_COUNT, 0_u32),
         (COMMISSIONS, commissions),
-        (BIDDER_NUMBER_CAP, bidder_count_cap)
+        (BIDDER_NUMBER_CAP, bidder_count_cap),
+        (AUCTION_TIMER_EXTENSION, auction_timer_extension)
     );
     add_empty_dict(&mut named_keys, EVENTS);
     named_keys
