@@ -1,4 +1,6 @@
-use alloc::{collections::BTreeMap, string::ToString};
+use core::iter::FromIterator;
+
+use alloc::{collections::BTreeMap, string::ToString, vec::Vec};
 use casper_contract::{
     contract_api::{
         runtime::{self},
@@ -7,6 +9,8 @@ use casper_contract::{
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{account::AccountHash, ApiError, Key, URef, U512};
+
+use crate::error::AuctionError;
 
 pub struct Bids {
     key_uref: URef,
@@ -225,5 +229,19 @@ impl Bids {
             return Some((max_key, max_value));
         }
         None
+    }
+
+    /// Returns the account hash of the lowest bidder if the new bid is higher
+    pub fn get_spot(&self, new_item: U512) -> Option<AccountHash> {
+        let mut bidders = Vec::from_iter(self.to_map());
+        bidders.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+        let (lowest_bidder, lowest_bid) = bidders
+            .pop()
+            .unwrap_or_revert_with(AuctionError::UnreachableDeadEnd);
+        if lowest_bid < new_item {
+            Some(lowest_bidder)
+        } else {
+            None
+        }
     }
 }

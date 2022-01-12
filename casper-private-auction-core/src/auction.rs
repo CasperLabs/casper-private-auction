@@ -30,6 +30,15 @@ impl Auction {
         }
         // Get the existing bid, if any
         let mut bids = AuctionData::get_bids();
+        if bids.get(&bidder).is_none() {
+            if let Some(bidder_cap) = AuctionData::get_bidder_count_cap() {
+                if bidder_cap <= bids.len() {
+                    if let Some(lowest_bidder) = bids.get_spot(bid) {
+                        bids.remove_by_key(&lowest_bidder);
+                    }
+                }
+            }
+        }
         let auction_purse = AuctionData::get_auction_purse();
         let bid_amount = if let Some(current_bid) = bids.get(&bidder) {
             if bid <= current_bid {
@@ -155,7 +164,7 @@ impl crate::AuctionLogic for Auction {
         if !AuctionData::is_kyc_proved() {
             runtime::revert(AuctionError::KYCError);
         }
-        if get_call_stack().len() != 2{
+        if get_call_stack().len() != 2 {
             runtime::revert(AuctionError::DisallowedMiddleware);
         }
         // We do not check times here because we do that in Auction::add_bid

@@ -27,7 +27,7 @@ pub struct AuctionArgsBuilder {
     cancellation_time: u64,
     end_time: u64,
     name: String,
-    bidder_count_cap: u8,
+    bidder_count_cap: Option<u64>,
 }
 
 impl AuctionArgsBuilder {
@@ -51,7 +51,7 @@ impl AuctionArgsBuilder {
             cancellation_time: 3000,
             end_time: 3500,
             name: "test".to_string(),
-            bidder_count_cap: 10,
+            bidder_count_cap: Some(10),
         }
     }
 
@@ -99,7 +99,7 @@ impl AuctionArgsBuilder {
         self.end_time = end_time;
     }
 
-    pub fn set_bidder_count_cap(&mut self, bidder_count_cap: u8) {
+    pub fn set_bidder_count_cap(&mut self, bidder_count_cap: Option<u64>) {
         self.bidder_count_cap = bidder_count_cap;
     }
 
@@ -145,7 +145,7 @@ impl Default for AuctionArgsBuilder {
             cancellation_time: 3000,
             end_time: 3500,
             name: "test".to_string(),
-            bidder_count_cap: 10,
+            bidder_count_cap: Some(10),
         }
     }
 }

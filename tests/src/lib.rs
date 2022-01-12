@@ -214,7 +214,7 @@ fn auction_unknown_format_test() {
         "cancellation_time" => 2,
         "end_time" => 3,
         "name" => "test",
-        "bidder_count_cap" => 10_u8
+        "bidder_count_cap" => Some(10_u64)
     };
 
     let (auction_hash, auction_package) =
@@ -263,7 +263,7 @@ fn auction_bad_times_test() {
         "cancellation_time" => 20_u64,
         "end_time" => 11_u64,
         "name" => "test",
-        "bidder_count_cap" => 10_u8
+        "bidder_count_cap" => Some(10_u64)
     };
 
     let (auction_hash, auction_package) =
@@ -328,7 +328,7 @@ fn auction_bid_no_kyc_token_test() {
         "cancellation_time" => now+3500,
         "end_time" => now+4000,
         "name" => "test",
-        "bidder_count_cap" => 10_u8
+        "bidder_count_cap" => Some(10_u64)
     };
 
     let (auction_hash, auction_package) =
@@ -350,7 +350,6 @@ fn auction_bid_no_kyc_token_test() {
 
 #[test]
 fn cancel_auction_test() {
-    // todo: test cancelling the auction
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
     auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
@@ -359,7 +358,6 @@ fn cancel_auction_test() {
 #[test]
 #[should_panic = "User(22)"]
 fn cancel_auction_after_bid_test() {
-    // todo: test cancelling the auction
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
@@ -368,10 +366,28 @@ fn cancel_auction_after_bid_test() {
 
 #[test]
 fn cancel_auction_after_cancelled_bid_test() {
-    // todo: test cancelling the auction
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1001);
     auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1002)
+}
+
+#[test]
+#[should_panic = "User(6)"]
+fn english_auction_bidder_count_limit_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    auction_args.set_bidder_count_cap(Some(1));
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
+    auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
+    auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1002);
+    auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
+    assert!(auction_contract.is_finalized());
+    assert_eq!(auction_contract.ali, auction_contract.get_winner().unwrap());
+    assert_eq!(
+        U512::from(40000),
+        auction_contract.get_winning_bid().unwrap()
+    );
 }

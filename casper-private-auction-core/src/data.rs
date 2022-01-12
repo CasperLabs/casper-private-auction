@@ -204,7 +204,7 @@ impl AuctionData {
         read_named_key_value(COMMISSIONS)
     }
 
-    pub fn get_bidder_count_cap() -> u8 {
+    pub fn get_bidder_count_cap() -> Option<u64> {
         read_named_key_value(BIDDER_NUMBER_CAP)
     }
 
@@ -319,7 +319,7 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let current_winner: Option<Key> = None;
     let bids: BTreeMap<AccountHash, U512> = BTreeMap::new();
     let finalized = false;
-    let bidder_count_cap = runtime::get_named_arg::<u8>(BIDDER_NUMBER_CAP);
+    let bidder_count_cap = runtime::get_named_arg::<Option<u64>>(BIDDER_NUMBER_CAP);
     // Get commissions from nft
 
     let commissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
