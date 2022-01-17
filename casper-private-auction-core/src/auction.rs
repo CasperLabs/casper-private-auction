@@ -201,11 +201,16 @@ impl crate::AuctionLogic for Auction {
         } else {
             Self::add_bid(bidder, bidder_purse, bid);
             if let (Some(_), Some(current_price)) = (winner, price) {
-                if bid > current_price {
+                let min_step = AuctionData::get_minimum_bid_step().unwrap_or_default();
+                if bid > current_price && bid - current_price >= min_step {
                     AuctionData::set_winner(Some(bidder), Some(bid));
+                } else {
+                    runtime::revert(AuctionError::BidTooLow)
                 }
             } else if let (None, None) = (winner, price) {
                 AuctionData::set_winner(Some(bidder), Some(bid));
+            } else {
+                runtime::revert(AuctionError::BadState)
             }
         }
 

@@ -29,6 +29,7 @@ pub struct AuctionArgsBuilder {
     name: String,
     bidder_count_cap: Option<u64>,
     auction_timer_extension: Option<u64>,
+    minimum_bid_step: Option<U512>,
 }
 
 impl AuctionArgsBuilder {
@@ -54,6 +55,7 @@ impl AuctionArgsBuilder {
             name: "test".to_string(),
             bidder_count_cap: None,
             auction_timer_extension: None,
+            minimum_bid_step: None,
         }
     }
 
@@ -109,6 +111,10 @@ impl AuctionArgsBuilder {
         self.auction_timer_extension = auction_timer_extension;
     }
 
+    pub fn set_minimum_bid_step(&mut self, minimum_bid_step: Option<U512>) {
+        self.minimum_bid_step = minimum_bid_step;
+    }
+
     pub fn build(&self) -> RuntimeArgs {
         runtime_args! {
             "beneficiary_account"=>Key::Account(self.beneficiary_account),
@@ -123,7 +129,8 @@ impl AuctionArgsBuilder {
             "end_time" => self.start_time+self.end_time,
             "name" => self.name.clone(),
             "bidder_count_cap" => self.bidder_count_cap,
-            "auction_timer_extension" => self.auction_timer_extension
+            "auction_timer_extension" => self.auction_timer_extension,
+            "minimum_bid_step" => self.minimum_bid_step,
         }
     }
 
@@ -154,6 +161,7 @@ impl Default for AuctionArgsBuilder {
             name: "test".to_string(),
             bidder_count_cap: None,
             auction_timer_extension: None,
+            minimum_bid_step: None,
         }
     }
 }

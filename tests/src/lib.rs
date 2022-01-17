@@ -39,7 +39,7 @@ fn english_auction_bid_finalize_test() {
 }
 
 #[test]
-fn english_auction_bid_cancel_only_test() {
+fn english_auction_cancel_only_bid_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
     assert!(now < auction_contract.get_end());
@@ -51,6 +51,7 @@ fn english_auction_bid_cancel_only_test() {
 }
 
 #[test]
+#[should_panic = "User(3)"]
 fn english_auction_bid_cancel_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
@@ -215,7 +216,8 @@ fn auction_unknown_format_test() {
         "end_time" => 3,
         "name" => "test",
         "bidder_count_cap" => Some(10_u64),
-        "auction_timer_extension" => None::<u64>
+        "auction_timer_extension" => None::<u64>,
+        "minimum_bid_step"=> None::<U512>
     };
 
     let (auction_hash, auction_package) =
@@ -265,7 +267,8 @@ fn auction_bad_times_test() {
         "end_time" => 11_u64,
         "name" => "test",
         "bidder_count_cap" => Some(10_u64),
-        "auction_timer_extension" => None::<u64>
+        "auction_timer_extension" => None::<u64>,
+        "minimum_bid_step"=> None::<U512>
     };
 
     let (auction_hash, auction_package) =
@@ -331,7 +334,8 @@ fn auction_bid_no_kyc_token_test() {
         "end_time" => now+4000,
         "name" => "test",
         "bidder_count_cap" => Some(10_u64),
-        "auction_timer_extension" => None::<u64>
+        "auction_timer_extension" => None::<u64>,
+        "minimum_bid_step"=> None::<U512>
     };
 
     let (auction_hash, auction_package) =
@@ -410,4 +414,29 @@ fn english_increase_time_test() {
     assert!(auction_contract.is_finalized());
     assert_eq!(None, auction_contract.get_winner());
     assert_eq!(None, auction_contract.get_winning_bid());
+}
+
+#[test]
+fn english_auction_bid_step_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    auction_args.set_minimum_bid_step(Some(U512::from(10000)));
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
+    auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
+    auction_contract.finalize(&auction_contract.admin.clone(), now + 4000);
+    assert!(auction_contract.is_finalized());
+    assert_eq!(Some(auction_contract.ali), auction_contract.get_winner());
+    assert_eq!(Some(U512::from(40000)), auction_contract.get_winning_bid());
+}
+
+#[test]
+#[should_panic = "User(3)"]
+fn english_auction_bid_step_test_failing() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    auction_args.set_minimum_bid_step(Some(U512::from(10001)));
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
+    auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
 }
