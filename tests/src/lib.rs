@@ -217,7 +217,9 @@ fn auction_unknown_format_test() {
         "name" => "test",
         "bidder_count_cap" => Some(10_u64),
         "auction_timer_extension" => None::<u64>,
-        "minimum_bid_step"=> None::<U512>
+        "minimum_bid_step"=> None::<U512>,
+        "marketplace_account" => AccountHash::new([11_u8; 32]),
+        "marketplace_commission" => 75
     };
 
     let (auction_hash, auction_package) =
@@ -268,7 +270,9 @@ fn auction_bad_times_test() {
         "name" => "test",
         "bidder_count_cap" => Some(10_u64),
         "auction_timer_extension" => None::<u64>,
-        "minimum_bid_step"=> None::<U512>
+        "minimum_bid_step"=> None::<U512>,
+        "marketplace_account" => AccountHash::new([11_u8; 32]),
+        "marketplace_commission" => 75
     };
 
     let (auction_hash, auction_package) =
@@ -335,7 +339,9 @@ fn auction_bid_no_kyc_token_test() {
         "name" => "test",
         "bidder_count_cap" => Some(10_u64),
         "auction_timer_extension" => None::<u64>,
-        "minimum_bid_step"=> None::<U512>
+        "minimum_bid_step"=> None::<U512>,
+        "marketplace_account" => AccountHash::new([11_u8; 32]),
+        "marketplace_commission" => 75
     };
 
     let (auction_hash, auction_package) =
@@ -439,4 +445,19 @@ fn english_auction_bid_step_test_failing() {
     let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
     auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
+}
+
+#[test]
+fn marketplace_commission_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    auction_contract.bid(
+        &auction_contract.ali.clone(),
+        U512::from(100000),
+        now + 1000,
+    );
+    auction_contract.finalize(&auction_contract.admin.clone(), now + 4000);
+    assert!(auction_contract.is_finalized());
+    assert_eq!(auction_contract.get_marketplace_balance(), U512::from(7500));
 }

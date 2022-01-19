@@ -30,6 +30,8 @@ pub struct AuctionArgsBuilder {
     bidder_count_cap: Option<u64>,
     auction_timer_extension: Option<u64>,
     minimum_bid_step: Option<U512>,
+    marketplace_account: AccountHash,
+    marketplace_commission: u32,
 }
 
 impl AuctionArgsBuilder {
@@ -56,6 +58,8 @@ impl AuctionArgsBuilder {
             bidder_count_cap: None,
             auction_timer_extension: None,
             minimum_bid_step: None,
+            marketplace_account: AccountHash::new([11_u8; 32]),
+            marketplace_commission: 75,
         }
     }
 
@@ -131,6 +135,8 @@ impl AuctionArgsBuilder {
             "bidder_count_cap" => self.bidder_count_cap,
             "auction_timer_extension" => self.auction_timer_extension,
             "minimum_bid_step" => self.minimum_bid_step,
+            "marketplace_account" => self.marketplace_account,
+            "marketplace_commission" => self.marketplace_commission,
         }
     }
 
@@ -162,6 +168,8 @@ impl Default for AuctionArgsBuilder {
             bidder_count_cap: None,
             auction_timer_extension: None,
             minimum_bid_step: None,
+            marketplace_account: AccountHash::new([11_u8; 32]),
+            marketplace_commission: 75,
         }
     }
 }

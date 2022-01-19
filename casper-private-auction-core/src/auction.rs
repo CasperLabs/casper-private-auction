@@ -130,6 +130,18 @@ impl crate::AuctionLogic for Auction {
                 let mut bids = AuctionData::get_bids();
                 match bids.get(&key) {
                     Some(bid) => {
+                        // Marketplace share first, then people get money
+                        let (marketplace_account, marketplace_commission) =
+                            AuctionData::get_marketplace_data();
+                        let market_share = bid / 1000 * marketplace_commission;
+                        system::transfer_from_purse_to_account(
+                            auction_purse,
+                            marketplace_account,
+                            market_share,
+                            None,
+                        )
+                        .unwrap_or_revert();
+                        let bid = bid - market_share;
                         // Every actor receives x one-thousandth of the winning bid, the surplus goes to the designated beneficiary account.
                         let share_piece = bid / 1000;
                         let mut given_as_shares = U512::zero();

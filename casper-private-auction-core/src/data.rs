@@ -51,6 +51,8 @@ pub const KYC_HASH: &str = "kyc_package_hash";
 pub const BIDDER_NUMBER_CAP: &str = "bidder_count_cap";
 pub const AUCTION_TIMER_EXTENSION: &str = "auction_timer_extension";
 pub const MINIMUM_BID_STEP: &str = "minimum_bid_step";
+pub const MARKETPLACE_COMMISSION: &str = "marketplace_commission";
+pub const MARKETPLACE_ACCOUNT: &str = "marketplace_account";
 
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
@@ -214,6 +216,13 @@ impl AuctionData {
         read_named_key_value(MINIMUM_BID_STEP)
     }
 
+    pub fn get_marketplace_data() -> (AccountHash, u32) {
+        (
+            read_named_key_value(MARKETPLACE_ACCOUNT),
+            read_named_key_value(MARKETPLACE_COMMISSION),
+        )
+    }
+
     pub fn get_commission_shares() -> BTreeMap<AccountHash, u16> {
         let commissions = Self::get_commissions();
         let mut converted_commissions: BTreeMap<AccountHash, u16> = BTreeMap::new();
@@ -351,6 +360,8 @@ pub fn create_auction_named_keys() -> NamedKeys {
 
     let auction_timer_extension = runtime::get_named_arg::<Option<u64>>(AUCTION_TIMER_EXTENSION);
     let minimum_bid_step = runtime::get_named_arg::<Option<U512>>(MINIMUM_BID_STEP);
+    let marketplace_commission = runtime::get_named_arg::<u32>(MARKETPLACE_COMMISSION);
+    let marketplace_account = runtime::get_named_arg::<AccountHash>(MARKETPLACE_ACCOUNT);
 
     let mut named_keys = named_keys!(
         (OWNER, token_owner),
@@ -371,7 +382,9 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (COMMISSIONS, commissions),
         (BIDDER_NUMBER_CAP, bidder_count_cap),
         (AUCTION_TIMER_EXTENSION, auction_timer_extension),
-        (MINIMUM_BID_STEP, minimum_bid_step)
+        (MINIMUM_BID_STEP, minimum_bid_step),
+        (MARKETPLACE_COMMISSION, marketplace_commission),
+        (MARKETPLACE_ACCOUNT, marketplace_account)
     );
     add_empty_dict(&mut named_keys, EVENTS);
     named_keys
