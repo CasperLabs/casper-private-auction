@@ -431,4 +431,12 @@ impl AuctionContract {
             self.get_account_balance(&self.bob),
         )
     }
+
+    pub fn get_marketplace_balance(&self) -> U512 {
+        let account = self
+            .builder
+            .get_account(AccountHash::new([11_u8; 32]))
+            .expect("should get genesis account");
+        self.builder.get_purse_balance(account.main_purse())
+    }
 }

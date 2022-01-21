@@ -27,7 +27,11 @@ pub struct AuctionArgsBuilder {
     cancellation_time: u64,
     end_time: u64,
     name: String,
-    bidder_count_cap: u8,
+    bidder_count_cap: Option<u64>,
+    auction_timer_extension: Option<u64>,
+    minimum_bid_step: Option<U512>,
+    marketplace_account: AccountHash,
+    marketplace_commission: u32,
 }
 
 impl AuctionArgsBuilder {
@@ -51,7 +55,11 @@ impl AuctionArgsBuilder {
             cancellation_time: 3000,
             end_time: 3500,
             name: "test".to_string(),
-            bidder_count_cap: 10,
+            bidder_count_cap: None,
+            auction_timer_extension: None,
+            minimum_bid_step: None,
+            marketplace_account: AccountHash::new([11_u8; 32]),
+            marketplace_commission: 75,
         }
     }
 
@@ -99,8 +107,16 @@ impl AuctionArgsBuilder {
         self.end_time = end_time;
     }
 
-    pub fn set_bidder_count_cap(&mut self, bidder_count_cap: u8) {
+    pub fn set_bidder_count_cap(&mut self, bidder_count_cap: Option<u64>) {
         self.bidder_count_cap = bidder_count_cap;
+    }
+
+    pub fn set_auction_timer_extension(&mut self, auction_timer_extension: Option<u64>) {
+        self.auction_timer_extension = auction_timer_extension;
+    }
+
+    pub fn set_minimum_bid_step(&mut self, minimum_bid_step: Option<U512>) {
+        self.minimum_bid_step = minimum_bid_step;
     }
 
     pub fn build(&self) -> RuntimeArgs {
@@ -116,7 +132,11 @@ impl AuctionArgsBuilder {
             "cancellation_time" => self.start_time+self.cancellation_time,
             "end_time" => self.start_time+self.end_time,
             "name" => self.name.clone(),
-            "bidder_count_cap" => self.bidder_count_cap
+            "bidder_count_cap" => self.bidder_count_cap,
+            "auction_timer_extension" => self.auction_timer_extension,
+            "minimum_bid_step" => self.minimum_bid_step,
+            "marketplace_account" => self.marketplace_account,
+            "marketplace_commission" => self.marketplace_commission,
         }
     }
 
@@ -145,7 +165,11 @@ impl Default for AuctionArgsBuilder {
             cancellation_time: 3000,
             end_time: 3500,
             name: "test".to_string(),
-            bidder_count_cap: 10,
+            bidder_count_cap: None,
+            auction_timer_extension: None,
+            minimum_bid_step: None,
+            marketplace_account: AccountHash::new([11_u8; 32]),
+            marketplace_commission: 75,
         }
     }
 }

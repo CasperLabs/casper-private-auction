@@ -36,7 +36,6 @@ pub const RESERVE: &str = "reserve_price";
 pub const START_PRICE: &str = "starting_price";
 pub const PRICE: &str = "winning_bid";
 pub const WINNER: &str = "current_winner";
-pub const BIDS: &str = "bids";
 pub const FINALIZED: &str = "finalized";
 pub const BID: &str = "bid";
 pub const BID_PURSE: &str = "bid_purse";
@@ -50,6 +49,11 @@ pub const EVENTS_COUNT: &str = "auction_events_count";
 pub const COMMISSIONS: &str = "commissions";
 pub const KYC_HASH: &str = "kyc_package_hash";
 pub const BIDDER_NUMBER_CAP: &str = "bidder_count_cap";
+pub const AUCTION_TIMER_EXTENSION: &str = "auction_timer_extension";
+pub const MINIMUM_BID_STEP: &str = "minimum_bid_step";
+pub const MARKETPLACE_COMMISSION: &str = "marketplace_commission";
+pub const MARKETPLACE_ACCOUNT: &str = "marketplace_account";
+
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
         {
@@ -204,8 +208,19 @@ impl AuctionData {
         read_named_key_value(COMMISSIONS)
     }
 
-    pub fn get_bidder_count_cap() -> u8 {
+    pub fn get_bidder_count_cap() -> Option<u64> {
         read_named_key_value(BIDDER_NUMBER_CAP)
+    }
+
+    pub fn get_minimum_bid_step() -> Option<U512> {
+        read_named_key_value(MINIMUM_BID_STEP)
+    }
+
+    pub fn get_marketplace_data() -> (AccountHash, u32) {
+        (
+            read_named_key_value(MARKETPLACE_ACCOUNT),
+            read_named_key_value(MARKETPLACE_COMMISSION),
+        )
     }
 
     pub fn get_commission_shares() -> BTreeMap<AccountHash, u16> {
@@ -262,6 +277,13 @@ impl AuctionData {
             },
         )
     }
+
+    pub fn increase_auction_times() {
+        if let Some(increment) = read_named_key_value::<Option<u64>>(AUCTION_TIMER_EXTENSION) {
+            write_named_key_value(END, AuctionData::get_end() + increment);
+            write_named_key_value(CANCEL, AuctionData::get_cancel_time() + increment);
+        }
+    }
 }
 
 // TODO: Rewrite to avoid the match guard
@@ -317,9 +339,8 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let (start_time, cancellation_time, end_time): (u64, u64, u64) = auction_times_match();
     let winning_bid: Option<U512> = None;
     let current_winner: Option<Key> = None;
-    let bids: BTreeMap<AccountHash, U512> = BTreeMap::new();
     let finalized = false;
-    let bidder_count_cap = runtime::get_named_arg::<u8>(BIDDER_NUMBER_CAP);
+    let bidder_count_cap = runtime::get_named_arg::<Option<u64>>(BIDDER_NUMBER_CAP);
     // Get commissions from nft
 
     let commissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
@@ -337,6 +358,11 @@ pub fn create_auction_named_keys() -> NamedKeys {
         None => BTreeMap::new(),
     };
 
+    let auction_timer_extension = runtime::get_named_arg::<Option<u64>>(AUCTION_TIMER_EXTENSION);
+    let minimum_bid_step = runtime::get_named_arg::<Option<U512>>(MINIMUM_BID_STEP);
+    let marketplace_commission = runtime::get_named_arg::<u32>(MARKETPLACE_COMMISSION);
+    let marketplace_account = runtime::get_named_arg::<AccountHash>(MARKETPLACE_ACCOUNT);
+
     let mut named_keys = named_keys!(
         (OWNER, token_owner),
         (BENEFICIARY_ACCOUNT, beneficiary_account),
@@ -351,11 +377,14 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (RESERVE, reserve_price),
         (PRICE, winning_bid),
         (WINNER, current_winner),
-        (BIDS, bids),
         (FINALIZED, finalized),
         (EVENTS_COUNT, 0_u32),
         (COMMISSIONS, commissions),
-        (BIDDER_NUMBER_CAP, bidder_count_cap)
+        (BIDDER_NUMBER_CAP, bidder_count_cap),
+        (AUCTION_TIMER_EXTENSION, auction_timer_extension),
+        (MINIMUM_BID_STEP, minimum_bid_step),
+        (MARKETPLACE_COMMISSION, marketplace_commission),
+        (MARKETPLACE_ACCOUNT, marketplace_account)
     );
     add_empty_dict(&mut named_keys, EVENTS);
     named_keys
