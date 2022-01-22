@@ -1,6 +1,6 @@
 use casper_contract::{
     contract_api::{
-        runtime::{self, revert},
+        runtime::{self, get_call_stack, revert},
         storage::{self, new_dictionary},
     },
     unwrap_or_revert::UnwrapOrRevert,
@@ -53,6 +53,8 @@ pub const AUCTION_TIMER_EXTENSION: &str = "auction_timer_extension";
 pub const MINIMUM_BID_STEP: &str = "minimum_bid_step";
 pub const MARKETPLACE_COMMISSION: &str = "marketplace_commission";
 pub const MARKETPLACE_ACCOUNT: &str = "marketplace_account";
+pub const AUCTION_COUNT: &str = "auction_count";
+pub const AUCTION_ACTIVE_STATE: &str = "auction_active_state";
 
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
@@ -152,6 +154,18 @@ impl AuctionData {
         start_price - (step * time_passed)
     }
 
+    pub fn get_auction_package_hash() -> ContractPackageHash {
+        if let casper_types::system::CallStackElement::StoredContract {
+            contract_package_hash,
+            contract_hash: _,
+        } = get_call_stack().last().unwrap_or_revert()
+        {
+            *contract_package_hash
+        } else {
+            revert(ApiError::User(700));
+        }
+    }
+
     pub fn get_reserve() -> U512 {
         read_named_key_value::<U512>(RESERVE)
     }
@@ -221,6 +235,22 @@ impl AuctionData {
             read_named_key_value(MARKETPLACE_ACCOUNT),
             read_named_key_value(MARKETPLACE_COMMISSION),
         )
+    }
+
+    pub fn get_auction_count() -> u8 {
+        read_named_key_value(AUCTION_COUNT)
+    }
+
+    pub fn get_auction_active_state() -> bool {
+        read_named_key_value(AUCTION_ACTIVE_STATE)
+    }
+
+    pub fn set_auction_count(count: u8) {
+        write_named_key_value(AUCTION_COUNT, count)
+    }
+
+    pub fn set_auction_active_state(state: bool) {
+        write_named_key_value(AUCTION_ACTIVE_STATE, state)
     }
 
     pub fn get_commission_shares() -> BTreeMap<AccountHash, u16> {
@@ -384,7 +414,9 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (AUCTION_TIMER_EXTENSION, auction_timer_extension),
         (MINIMUM_BID_STEP, minimum_bid_step),
         (MARKETPLACE_COMMISSION, marketplace_commission),
-        (MARKETPLACE_ACCOUNT, marketplace_account)
+        (MARKETPLACE_ACCOUNT, marketplace_account),
+        (AUCTION_ACTIVE_STATE, true),
+        (AUCTION_COUNT, 1_u8)
     );
     add_empty_dict(&mut named_keys, EVENTS);
     named_keys
@@ -416,4 +448,131 @@ fn string_to_u16(ustr: &str) -> u16 {
         Ok(u) => u,
         Err(_e) => revert(AuctionError::CommissionRateIncorrectSerialization),
     }
+}
+
+pub fn push_auction_history() {
+    let mut history_item: BTreeMap<String, String> = BTreeMap::new();
+    history_item.insert(
+        "nft_package_contract".to_string(),
+        AuctionData::get_nft_hash().to_formatted_string(),
+    );
+    history_item.insert(
+        "kyc_package_contract".to_string(),
+        AuctionData::get_kyc_hash().to_formatted_string(),
+    );
+    history_item.insert("token_id".to_string(), AuctionData::get_token_id());
+    history_item.insert(
+        "winner".to_string(),
+        match AuctionData::get_winner() {
+            Some(winner) => winner.to_formatted_string(),
+            None => "unclaimed".to_string(),
+        },
+    );
+    history_item.insert(
+        "winning_price".to_string(),
+        match AuctionData::get_price() {
+            Some(winning_price) => winning_price.to_string(),
+            None => "unclaimed".to_string(),
+        },
+    );
+    let (market_acc, market_share) = AuctionData::get_marketplace_data();
+    history_item.insert(
+        "marketplace_account".to_string(),
+        market_acc.to_formatted_string(),
+    );
+    history_item.insert(
+        "marketplace_commission".to_string(),
+        market_share.to_string(),
+    );
+    runtime::put_key(&format!("auction_{}_data", AuctionData::get_auction_count().to_string()), storage::new_uref(history_item).into())
+}
+
+pub fn initialize_auction() {
+    if AuctionData::get_auction_active_state() {
+        revert(ApiError::User(800))
+    }
+    if AuctionData::get_token_owner() != Key::Account(runtime::get_caller()) {
+        revert(ApiError::User(801))
+    }
+    // Get the beneficiary purse
+    let beneficiary_account = match runtime::get_named_arg::<Key>(BENEFICIARY_ACCOUNT) {
+        key @ Key::Account(_) => key,
+        _ => runtime::revert(AuctionError::InvalidBeneficiary),
+    };
+
+    // Get the auction parameters from the command line args
+    let token_contract_hash: [u8; 32] = runtime::get_named_arg::<Key>(NFT_HASH)
+        .into_hash()
+        .unwrap_or_default();
+    let kyc_contract_hash: [u8; 32] = runtime::get_named_arg::<Key>(KYC_HASH)
+        .into_hash()
+        .unwrap_or_default();
+    let english_format = match runtime::get_named_arg::<String>("format").as_str() {
+        "ENGLISH" => true,
+        "DUTCH" => false,
+        _ => revert(AuctionError::UnknownFormat),
+    };
+    // Consider optimizing away the storage of start price key for English auctions
+    let (start_price, reserve_price) = match (
+        english_format,
+        runtime::get_named_arg::<Option<U512>>(START_PRICE),
+        runtime::get_named_arg::<U512>(RESERVE),
+    ) {
+        (false, Some(starting_price), reserver_price) if starting_price >= reserver_price => {
+            (Some(starting_price), reserver_price)
+        }
+        (true, None, reserver_price) => (None, reserver_price),
+        _ => runtime::revert(AuctionError::InvalidPrices),
+    };
+
+    let token_id = runtime::get_named_arg::<String>(TOKEN_ID);
+    let (start_time, cancellation_time, end_time): (u64, u64, u64) = auction_times_match();
+    let winning_bid: Option<U512> = None;
+    let current_winner: Option<Key> = None;
+    let finalized = false;
+    let bidder_count_cap = runtime::get_named_arg::<Option<u64>>(BIDDER_NUMBER_CAP);
+    // Get commissions from nft
+
+    let commissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
+        ContractPackageHash::from(token_contract_hash),
+        None,
+        "token_commission",
+        runtime_args! {
+            "token_id" => token_id.clone(),
+            "property" => "".to_string(),
+        },
+    );
+
+    let commissions = match commissions_ret {
+        Some(com) => com,
+        None => BTreeMap::new(),
+    };
+
+    let auction_timer_extension = runtime::get_named_arg::<Option<u64>>(AUCTION_TIMER_EXTENSION);
+    let minimum_bid_step = runtime::get_named_arg::<Option<U512>>(MINIMUM_BID_STEP);
+    let marketplace_commission = runtime::get_named_arg::<u32>(MARKETPLACE_COMMISSION);
+    let marketplace_account = runtime::get_named_arg::<AccountHash>(MARKETPLACE_ACCOUNT);
+
+    write_named_key_value(BENEFICIARY_ACCOUNT, beneficiary_account);
+    write_named_key_value(NFT_HASH, Key::Hash(token_contract_hash));
+    write_named_key_value(KYC_HASH, kyc_contract_hash);
+    write_named_key_value(ENGLISH_FORMAT, english_format);
+    write_named_key_value(TOKEN_ID, token_id.clone());
+    write_named_key_value(START, start_time);
+    write_named_key_value(CANCEL, cancellation_time);
+    write_named_key_value(END, end_time);
+    write_named_key_value(START_PRICE, start_price);
+    write_named_key_value(RESERVE, reserve_price);
+    write_named_key_value(PRICE, winning_bid);
+    write_named_key_value(WINNER, current_winner);
+    write_named_key_value(FINALIZED, finalized);
+    write_named_key_value(COMMISSIONS, commissions);
+    write_named_key_value(BIDDER_NUMBER_CAP, bidder_count_cap);
+    write_named_key_value(AUCTION_TIMER_EXTENSION, auction_timer_extension);
+    write_named_key_value(MINIMUM_BID_STEP, minimum_bid_step);
+    write_named_key_value(MARKETPLACE_COMMISSION, marketplace_commission);
+    write_named_key_value(MARKETPLACE_ACCOUNT, marketplace_account);
+
+    AuctionData::set_auction_active_state(true);
+    AuctionData::set_auction_count(AuctionData::get_auction_count() + 1);
 }

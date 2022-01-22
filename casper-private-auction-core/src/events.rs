@@ -1,4 +1,4 @@
-use crate::data::{EVENTS, EVENTS_COUNT};
+use crate::data::{AuctionData, EVENTS, EVENTS_COUNT};
 use crate::error::AuctionError;
 use alloc::collections::BTreeMap;
 use alloc::format;
@@ -23,6 +23,8 @@ pub enum AuctionEvent {
     Finalized {
         winner: Option<(AccountHash, U512)>,
     },
+    Start,
+    Cancelled,
 }
 
 pub fn emit(event: &AuctionEvent) {
@@ -73,6 +75,30 @@ pub fn emit(event: &AuctionEvent) {
                 },
             );
             event.insert("event_type", "Finalized".to_string());
+            (event, event_id)
+        }
+        AuctionEvent::Start => {
+            let mut event = BTreeMap::new();
+            let event_id = events_count.to_string();
+            event.insert("event_id", event_id.clone());
+            event.insert(
+                "nft_package_hash",
+                AuctionData::get_nft_hash().to_formatted_string(),
+            );
+            event.insert("token_id", AuctionData::get_token_id());
+            event.insert("event_type", "Start".to_string());
+            (event, event_id)
+        }
+        AuctionEvent::Cancelled => {
+            let mut event = BTreeMap::new();
+            let event_id = events_count.to_string();
+            event.insert("event_id", event_id.clone());
+            event.insert(
+                "nft_package_hash",
+                AuctionData::get_nft_hash().to_formatted_string(),
+            );
+            event.insert("token_id", AuctionData::get_token_id());
+            event.insert("event_type", "Cancelled".to_string());
             (event, event_id)
         }
     };

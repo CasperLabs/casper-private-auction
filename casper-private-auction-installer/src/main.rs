@@ -12,8 +12,8 @@ use casper_contract::{
 };
 use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
 use casper_types::{
-    runtime_args, CLType, ContractPackageHash, EntryPoint, EntryPointAccess, EntryPointType,
-    EntryPoints, Key, Parameter, RuntimeArgs,
+    account::AccountHash, runtime_args, CLType, CLTyped, ContractPackageHash, EntryPoint,
+    EntryPointAccess, EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
 };
 
 #[no_mangle]
@@ -43,6 +43,11 @@ pub extern "C" fn init() {
         runtime::put_key(data::AUCTION_PURSE, purse.into());
         Bids::init();
     }
+}
+
+#[no_mangle]
+pub extern "C" fn reinitialize() {
+    data::initialize_auction()
 }
 
 pub fn get_entry_points() -> EntryPoints {
@@ -78,6 +83,30 @@ pub fn get_entry_points() -> EntryPoints {
     entry_points.add_entry_point(EntryPoint::new(
         data::CANCEL_AUCTION_FUNC,
         vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+
+    entry_points.add_entry_point(EntryPoint::new(
+        "reinitialize",
+        vec![
+            Parameter::new(data::BENEFICIARY_ACCOUNT, CLType::Key),
+            Parameter::new(data::NFT_HASH, CLType::Key),
+            Parameter::new(data::KYC_HASH, CLType::Key),
+            Parameter::new(data::ENGLISH_FORMAT, CLType::String),
+            Parameter::new(data::TOKEN_ID, CLType::String),
+            Parameter::new(data::START, CLType::U64),
+            Parameter::new(data::CANCEL, CLType::U64),
+            Parameter::new(data::END, CLType::U64),
+            Parameter::new(data::START_PRICE, CLType::U512),
+            Parameter::new(data::RESERVE, CLType::U512),
+            Parameter::new(data::MINIMUM_BID_STEP, CLType::U512),
+            Parameter::new(data::BIDDER_NUMBER_CAP, CLType::U64),
+            Parameter::new(data::AUCTION_TIMER_EXTENSION, CLType::U64),
+            Parameter::new(data::MARKETPLACE_ACCOUNT, AccountHash::cl_type()),
+            Parameter::new(data::MARKETPLACE_COMMISSION, CLType::U32),
+        ],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,

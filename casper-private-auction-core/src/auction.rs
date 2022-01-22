@@ -12,7 +12,7 @@ pub use casper_types::{
     CLTyped, ContractHash, Key, RuntimeArgs, URef, U512,
 };
 
-use crate::error::AuctionError;
+use crate::{data::push_auction_history, error::AuctionError};
 use crate::{
     data::AuctionData,
     events::{emit, AuctionEvent},
@@ -76,7 +76,7 @@ impl Auction {
         if let Some(CallStackElement::Session { account_hash }) = call_stack.first() {
             *account_hash
         } else {
-            runtime::revert(AuctionError::InvalidCaller)
+            runtime::revert(AuctionError::InvalidBidCaller)
         }
     }
 
@@ -285,12 +285,14 @@ impl crate::AuctionLogic for Auction {
                 None
             }
         };
-        emit(&AuctionEvent::Finalized { winner })
+        emit(&AuctionEvent::Finalized { winner });
+        AuctionData::set_auction_active_state(false);
+        push_auction_history();
     }
 
     fn cancel_auction() {
         if AuctionData::get_token_owner() != Key::Account(runtime::get_caller()) {
-            runtime::revert(AuctionError::InvalidCaller);
+            runtime::revert(AuctionError::InvalidCancelCaller);
         }
         if !AuctionData::get_bids().is_empty() && AuctionData::get_winner().is_some() {
             runtime::revert(AuctionError::CannotCancelAuction);
@@ -299,5 +301,8 @@ impl crate::AuctionLogic for Auction {
         Self::auction_allocate(None);
         Self::auction_transfer(None);
         AuctionData::set_finalized();
+        AuctionData::set_auction_active_state(false);
+        emit(&AuctionEvent::Cancelled);
+        push_auction_history();
     }
 }
