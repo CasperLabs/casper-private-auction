@@ -21,7 +21,7 @@ use crate::auction_args::AuctionArgsBuilder;
 pub mod auction;
 pub mod auction_args;
 pub mod utils;
-/*
+
 #[test]
 fn english_auction_bid_finalize_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
@@ -461,7 +461,7 @@ fn marketplace_commission_test() {
     assert!(auction_contract.is_finalized());
     assert_eq!(auction_contract.get_marketplace_balance(), U512::from(7500));
 }
-*/
+
 #[test]
 fn reinitialize_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
@@ -472,17 +472,32 @@ fn reinitialize_test() {
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
 
     let first_auction_data = auction_contract.get_auction_history_item(1);
-    assert_eq!(first_auction_data.get("winner").unwrap(), &auction_contract.bob.to_formatted_string());
-    assert_eq!(first_auction_data.get("marketplace_commission").unwrap(), "75");
-    assert_eq!(first_auction_data.get("token_id").unwrap(), "custom_token_id");
+    assert_eq!(
+        first_auction_data.get("winner").unwrap(),
+        &auction_contract.bob.to_formatted_string()
+    );
+    assert_eq!(
+        first_auction_data.get("marketplace_commission").unwrap(),
+        "75"
+    );
+    assert_eq!(
+        first_auction_data.get("token_id").unwrap(),
+        "custom_token_id"
+    );
 
     let token_id = String::from("custom_token_id_2");
     let token_meta = btreemap! {
         "origin".to_string() => "water".to_string()
     };
     let commissions = BTreeMap::new();
-    let admin = auction_contract.admin.clone();
-    auction_contract.mint_nft_token(&Key::Hash(auction_contract.auction_package.value()), &token_id, &token_meta, &admin, commissions);
+    let admin = auction_contract.admin;
+    auction_contract.mint_nft_token(
+        &Key::Hash(auction_contract.auction_package.value()),
+        &token_id,
+        &token_meta,
+        &admin,
+        commissions,
+    );
 
     let auction_args = runtime_args! {
         "beneficiary_account"=>Key::Account(admin),
@@ -502,20 +517,35 @@ fn reinitialize_test() {
         "marketplace_commission" => 50
     };
 
-    auction_contract.reinitialize(&admin, now+2000, auction_args);
+    auction_contract.reinitialize(&admin, now + 2000, auction_args);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 7000);
 
     let second_auction_data = auction_contract.get_auction_history_item(2);
-    assert_eq!(second_auction_data.get("winner").unwrap(), &auction_contract.bob.to_formatted_string());
-    assert_eq!(second_auction_data.get("marketplace_commission").unwrap(), "50");
-    assert_eq!(second_auction_data.get("token_id").unwrap(), "custom_token_id_2");
+    assert_eq!(
+        second_auction_data.get("winner").unwrap(),
+        &auction_contract.bob.to_formatted_string()
+    );
+    assert_eq!(
+        second_auction_data.get("marketplace_commission").unwrap(),
+        "50"
+    );
+    assert_eq!(
+        second_auction_data.get("token_id").unwrap(),
+        "custom_token_id_2"
+    );
 
     let air_token_id = String::from("air_token");
     let air_token_meta = btreemap! {
         "origin".to_string() => "air".to_string()
     };
     let commissions = BTreeMap::new();
-    auction_contract.mint_nft_token(&Key::Hash(auction_contract.auction_package.value()), &air_token_id, &air_token_meta, &admin, commissions);
+    auction_contract.mint_nft_token(
+        &Key::Hash(auction_contract.auction_package.value()),
+        &air_token_id,
+        &air_token_meta,
+        &admin,
+        commissions,
+    );
     let auction_args_english = runtime_args! {
         "beneficiary_account"=>Key::Account(admin),
         "token_contract_hash"=>Key::Hash(auction_contract.nft_package.value()),
@@ -534,16 +564,97 @@ fn reinitialize_test() {
         "marketplace_commission" => 0
     };
 
-    auction_contract.reinitialize(&admin, now+12000, auction_args_english);
-    auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now + 17000);
+    auction_contract.reinitialize(&admin, now + 12000, auction_args_english);
+    auction_contract.bid(
+        &auction_contract.ali.clone(),
+        U512::from(30000),
+        now + 17000,
+    );
     auction_contract.finalize(&auction_contract.admin.clone(), now + 19000);
-    
+
     assert!(auction_contract.is_finalized());
 
     let third_auction_data = auction_contract.get_auction_history_item(3);
-    assert_eq!(third_auction_data.get("winner").unwrap(), &auction_contract.ali.to_formatted_string());
-    assert_eq!(third_auction_data.get("marketplace_commission").unwrap(), "0");
+    assert_eq!(
+        third_auction_data.get("winner").unwrap(),
+        &auction_contract.ali.to_formatted_string()
+    );
+    assert_eq!(
+        third_auction_data.get("marketplace_commission").unwrap(),
+        "0"
+    );
     assert_eq!(third_auction_data.get("token_id").unwrap(), "air_token");
 
     assert_eq!(3, auction_contract.get_auction_count());
+}
+
+#[test]
+fn reinitialize_after_cancel_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    auction_args.set_starting_price(Some(U512::from(40000)));
+    auction_args.set_dutch();
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+
+    let admin = auction_contract.admin;
+    auction_contract.cancel_auction(&admin, now + 1);
+
+    let first_auction_data = auction_contract.get_auction_history_item(1);
+    assert_eq!(first_auction_data.get("winner").unwrap(), "unclaimed");
+    assert_eq!(
+        first_auction_data.get("marketplace_commission").unwrap(),
+        "75"
+    );
+    assert_eq!(
+        first_auction_data.get("token_id").unwrap(),
+        "custom_token_id"
+    );
+
+    let token_id = String::from("custom_token_id_2");
+    let token_meta = btreemap! {
+        "origin".to_string() => "water".to_string()
+    };
+    let commissions = BTreeMap::new();
+    auction_contract.mint_nft_token(
+        &Key::Hash(auction_contract.auction_package.value()),
+        &token_id,
+        &token_meta,
+        &admin,
+        commissions,
+    );
+
+    let auction_args = runtime_args! {
+        "beneficiary_account"=>Key::Account(admin),
+        "token_contract_hash"=>Key::Hash(auction_contract.nft_package.value()),
+        "kyc_package_hash" => Key::Hash(auction_contract.kyc_package.value()),
+        "format"=> "DUTCH",
+        "starting_price"=> Some(U512::from(50000)),
+        "reserve_price"=>U512::from(300),
+        "token_id"=>token_id,
+        "start_time" => now+4500,
+        "cancellation_time" => now+7500,
+        "end_time" => now+8000,
+        "bidder_count_cap" => None::<u64>,
+        "auction_timer_extension" => None::<u64>,
+        "minimum_bid_step"=> None::<U512>,
+        "marketplace_account" => AccountHash::new([12_u8; 32]),
+        "marketplace_commission" => 50
+    };
+
+    auction_contract.reinitialize(&admin, now + 2000, auction_args);
+    auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 7000);
+
+    let second_auction_data = auction_contract.get_auction_history_item(2);
+    assert_eq!(
+        second_auction_data.get("winner").unwrap(),
+        &auction_contract.bob.to_formatted_string()
+    );
+    assert_eq!(
+        second_auction_data.get("marketplace_commission").unwrap(),
+        "50"
+    );
+    assert_eq!(
+        second_auction_data.get("token_id").unwrap(),
+        "custom_token_id_2"
+    );
 }

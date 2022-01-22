@@ -209,7 +209,7 @@ impl AuctionContract {
         (contract_hash, contract_package)
     }
 
-    pub fn reinitialize(&mut self, caller: &AccountHash, time: u64, args: RuntimeArgs){
+    pub fn reinitialize(&mut self, caller: &AccountHash, time: u64, args: RuntimeArgs) {
         self.call(caller, "reinitialize", args, time)
     }
 
@@ -341,12 +341,15 @@ impl AuctionContract {
         self.query_contract(self.auction_hash.value(), "token_id")
     }
 
-    pub fn get_auction_count(&self) -> u8{
+    pub fn get_auction_count(&self) -> u8 {
         self.query_contract(self.auction_hash.value(), "auction_count")
     }
 
-    pub fn get_auction_history_item(&self, index: u8) -> BTreeMap<String, String>{
-        self.query_contract(self.auction_hash.value(), &format!("auction_{}_data", index))
+    pub fn get_auction_history_item(&self, index: u8) -> BTreeMap<String, String> {
+        self.query_contract(
+            self.auction_hash.value(),
+            &format!("auction_{}_data", index),
+        )
     }
 
     pub fn get_winning_bid(&self) -> Option<U512> {

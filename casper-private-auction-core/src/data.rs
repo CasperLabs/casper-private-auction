@@ -484,7 +484,13 @@ pub fn push_auction_history() {
         "marketplace_commission".to_string(),
         market_share.to_string(),
     );
-    runtime::put_key(&format!("auction_{}_data", AuctionData::get_auction_count().to_string()), storage::new_uref(history_item).into())
+    runtime::put_key(
+        &format!(
+            "auction_{}_data",
+            AuctionData::get_auction_count().to_string()
+        ),
+        storage::new_uref(history_item).into(),
+    )
 }
 
 pub fn initialize_auction() {
@@ -557,7 +563,7 @@ pub fn initialize_auction() {
     write_named_key_value(NFT_HASH, Key::Hash(token_contract_hash));
     write_named_key_value(KYC_HASH, kyc_contract_hash);
     write_named_key_value(ENGLISH_FORMAT, english_format);
-    write_named_key_value(TOKEN_ID, token_id.clone());
+    write_named_key_value(TOKEN_ID, token_id);
     write_named_key_value(START, start_time);
     write_named_key_value(CANCEL, cancellation_time);
     write_named_key_value(END, end_time);
