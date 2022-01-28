@@ -7,34 +7,34 @@ cd "$parent_path"
 cd $CWD
 
 SELLER_KEY=$(nctl-view-user-account user=1\
-  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 SELLER_PURSE=$(nctl-view-user-account user=1\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
 
 BUYER_2_KEY=$(nctl-view-user-account user=2\
-  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 BUYER_2_PURSE=$(nctl-view-user-account user=2\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
 
 BUYER_3_KEY=$(nctl-view-user-account user=3\
-  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 BUYER_3_PURSE=$(nctl-view-user-account user=3\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
 
 BUYER_4_KEY=$(nctl-view-user-account user=4\
-  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 BUYER_4_PURSE=$(nctl-view-user-account user=4\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
 
 BUYER_5_KEY=$(nctl-view-user-account user=5\
-  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 BUYER_5_PURSE=$(nctl-view-user-account user=5\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
 
 . setup/actions/deploy_kyc.sh
 
@@ -81,7 +81,8 @@ echo "Obtained the following hashes:
 echo "Constructing complex args"
 
 cd setup/fixtures
-./metacask-runtime-arg-builder $SELLER_KEY $SELLER_KEY "artist,$BUYER_5_KEY,100|broker,$BUYER_4_KEY,200"
+#./metacask-runtime-arg-builder $SELLER_KEY $SELLER_KEY "artist,$BUYER_5_KEY,100|broker,$BUYER_4_KEY,200"
+./metacask-runtime-arg-builder $SELLER_KEY $SELLER_KEY "artist,$(echo $BUYER_5_KEY | tr '[:upper:]' '[:lower:]'),100|broker,$(echo $BUYER_4_KEY | tr '[:upper:]' '[:lower:]'),200"
 cd ../..
 
 . setup/actions/mint_nft.sh
