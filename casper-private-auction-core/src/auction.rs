@@ -42,7 +42,7 @@ impl Auction {
                             lowest_bid,
                             None,
                         )
-                        .unwrap_or_revert();
+                        .unwrap_or_revert_with(AuctionError::BidReturnLowest);
                     }
                 }
             }
@@ -56,7 +56,7 @@ impl Auction {
             new_bid
         };
         system::transfer_from_purse_to_purse(bidder_purse, auction_purse, bid_amount, None)
-            .unwrap_or_revert();
+            .unwrap_or_revert_with(AuctionError::TransferBidToAuction);
         bids.replace(&bidder, new_bid);
     }
 
@@ -83,7 +83,10 @@ impl Auction {
     fn auction_transfer_token(recipient: Key) {
         let auction_key: Key = {
             let call_stack = runtime::get_call_stack();
-            let caller: CallStackElement = call_stack.last().unwrap_or_revert().clone();
+            let caller: CallStackElement = call_stack
+                .last()
+                .unwrap_or_revert_with(AuctionError::CallStackTooShort)
+                .clone();
             match caller {
                 CallStackElement::StoredContract {
                     contract_package_hash,
@@ -120,7 +123,7 @@ impl crate::AuctionLogic for Auction {
             let mut bids = AuctionData::get_bids();
             for (bidder, bid) in &bids.to_map() {
                 system::transfer_from_purse_to_account(auction_purse, *bidder, *bid, None)
-                    .unwrap_or_revert();
+                    .unwrap_or_revert_with(AuctionError::AuctionEndReturnBids);
             }
             bids.clear();
         }
@@ -140,7 +143,7 @@ impl crate::AuctionLogic for Auction {
                             market_share,
                             None,
                         )
-                        .unwrap_or_revert();
+                        .unwrap_or_revert_with(AuctionError::TransferMarketPlaceShare);
                         let bid = bid - market_share;
                         // Every actor receives x one-thousandth of the winning bid, the surplus goes to the designated beneficiary account.
                         let share_piece = bid / 1000;
@@ -153,7 +156,7 @@ impl crate::AuctionLogic for Auction {
                                 actor_share,
                                 None,
                             )
-                            .unwrap_or_revert();
+                            .unwrap_or_revert_with(AuctionError::TransferCommissionShare);
                             given_as_shares += actor_share;
                         }
                         system::transfer_from_purse_to_account(
@@ -162,7 +165,7 @@ impl crate::AuctionLogic for Auction {
                             bid - given_as_shares,
                             None,
                         )
-                        .unwrap_or_revert();
+                        .unwrap_or_revert_with(AuctionError::TransferBeneficiaryShare);
                         bids.remove_by_key(&key);
                         return_bids(auction_purse);
                     }
@@ -244,7 +247,7 @@ impl crate::AuctionLogic for Auction {
                         current_bid,
                         None,
                     )
-                    .unwrap_or_revert();
+                    .unwrap_or_revert_with(AuctionError::AuctionCancelReturnBid);
                     bids.remove_by_key(&bidder);
                     match Self::find_new_winner() {
                         Some((winner, bid)) => AuctionData::set_winner(Some(winner), Some(bid)),

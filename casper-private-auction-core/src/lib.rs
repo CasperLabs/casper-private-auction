@@ -9,6 +9,7 @@ use casper_types::{
     bytesrepr::{FromBytes, ToBytes},
     CLTyped, Key, URef,
 };
+use error::AuctionError;
 
 extern crate alloc;
 
@@ -34,14 +35,17 @@ struct Dict {
 
 impl Dict {
     pub fn at(name: &str) -> Dict {
-        let key: Key = runtime::get_key(name).unwrap_or_revert();
-        let uref: URef = *key.as_uref().unwrap_or_revert();
+        let key: Key =
+            runtime::get_key(name).unwrap_or_revert_with(AuctionError::DictionaryKeyNotFound);
+        let uref: URef = *key
+            .as_uref()
+            .unwrap_or_revert_with(AuctionError::DictionaryKeyNotURef);
         Dict { uref }
     }
 
     pub fn _get<T: CLTyped + FromBytes>(&self, key: &str) -> Option<T> {
         storage::dictionary_get(self.uref, key)
-            .unwrap_or_revert()
+            .unwrap_or_revert_with(AuctionError::DictionaryGetFail)
             .unwrap_or_default()
     }
 

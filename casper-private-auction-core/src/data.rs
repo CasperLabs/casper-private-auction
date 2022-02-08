@@ -7,7 +7,7 @@ use casper_contract::{
 };
 use casper_types::{
     bytesrepr::{FromBytes, ToBytes},
-    runtime_args, ApiError, CLTyped, ContractPackageHash, RuntimeArgs, URef,
+    runtime_args, CLTyped, ContractPackageHash, RuntimeArgs, URef,
 };
 
 use crate::{
@@ -67,16 +67,18 @@ macro_rules! named_keys {
 // TODO: This needs A LOT of error handling because we don't want an auction being left in an unrecoverable state if the named keys are bad!
 pub fn read_named_key_uref(name: &str) -> URef {
     runtime::get_key(name)
-        .unwrap_or_revert_with(ApiError::User(100))
+        .unwrap_or_revert_with(AuctionError::CannotReadKey)
         .into_uref()
-        .unwrap_or_revert_with(ApiError::User(101))
+        .unwrap_or_revert_with(AuctionError::KeyNotUref)
 }
 
 // TODO: This needs A LOT of error handling because we don't want an auction being left in an unrecoverable state if the named keys are bad!
 pub fn read_named_key_value<T: CLTyped + FromBytes>(name: &str) -> T {
     let uref = read_named_key_uref(name);
 
-    storage::read(uref).unwrap_or_revert().unwrap_or_revert()
+    storage::read(uref)
+        .unwrap_or_revert_with(AuctionError::CannotReadKey)
+        .unwrap_or_revert_with(AuctionError::NamedKeyNotFound)
 }
 
 pub fn write_named_key_value<T: CLTyped + ToBytes>(name: &str, value: T) {
@@ -94,7 +96,7 @@ impl AuctionData {
         ContractPackageHash::new(
             read_named_key_value::<Key>(NFT_HASH)
                 .into_hash()
-                .unwrap_or_revert(),
+                .unwrap_or_revert_with(AuctionError::KeyNotHash),
         )
     }
     pub fn get_token_id() -> String {
@@ -175,7 +177,7 @@ impl AuctionData {
     pub fn get_beneficiary() -> AccountHash {
         read_named_key_value::<Key>(BENEFICIARY_ACCOUNT)
             .into_account()
-            .unwrap_or_revert()
+            .unwrap_or_revert_with(AuctionError::KeyNotAccount)
     }
 
     pub fn get_price() -> Option<U512> {
@@ -230,16 +232,20 @@ impl AuctionData {
         let mut share_sum = 0;
         for (key, value) in &commissions {
             let mut split = key.split('_');
-            let actor = split.next().unwrap_or_revert();
+            let actor = split
+                .next()
+                .unwrap_or_revert_with(AuctionError::CommissionActorSplit);
             if done.contains(actor) {
                 continue;
             }
-            let property = split.next().unwrap_or_revert();
+            let property = split
+                .next()
+                .unwrap_or_revert_with(AuctionError::CommissionPropertySplit);
             match property {
                 "account" => {
                     let rate = commissions
                         .get(&format!("{}_rate", actor))
-                        .unwrap_or_revert();
+                        .unwrap_or_revert_with(AuctionError::MismatchedCommissionAccount);
                     let share_rate = string_to_u16(rate);
                     share_sum += share_rate;
                     converted_commissions.insert(string_to_account_hash(value), share_rate);
@@ -247,7 +253,7 @@ impl AuctionData {
                 "rate" => {
                     let account = commissions
                         .get(&format!("{}_account", actor))
-                        .unwrap_or_revert();
+                        .unwrap_or_revert_with(AuctionError::MismatchedCommissionRate);
                     let share_rate = string_to_u16(value);
                     share_sum += share_rate;
                     converted_commissions.insert(string_to_account_hash(account), share_rate);
@@ -394,7 +400,7 @@ fn add_empty_dict(named_keys: &mut NamedKeys, name: &str) {
     if runtime::get_key(name).is_some() {
         runtime::remove_key(name);
     }
-    let dict = new_dictionary(name).unwrap_or_revert();
+    let dict = new_dictionary(name).unwrap_or_revert_with(AuctionError::CannotCreateDictionary);
     runtime::remove_key(name);
     named_keys.insert(name.to_string(), dict.into());
 }

@@ -12,8 +12,8 @@ use casper_contract::{
 };
 use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
 use casper_types::{
-    runtime_args, CLType, ContractPackageHash, EntryPoint, EntryPointAccess, EntryPointType,
-    EntryPoints, Key, Parameter, RuntimeArgs,
+    runtime_args, ApiError, CLType, ContractPackageHash, EntryPoint, EntryPointAccess,
+    EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
 };
 
 #[no_mangle]
@@ -122,7 +122,7 @@ pub extern "C" fn call() {
     let token_contract_hash = ContractPackageHash::new(
         runtime::get_named_arg::<Key>(data::NFT_HASH)
             .into_hash()
-            .unwrap_or_revert(),
+            .unwrap_or_revert_with(ApiError::User(200)),
     );
     // Transfer the NFT ownership to the auction
     let token_ids = vec![runtime::get_named_arg::<String>(data::TOKEN_ID)];
@@ -132,11 +132,13 @@ pub extern "C" fn call() {
         auction_desig,
         data::AUCTION_CONTRACT_HASH
     ))
-    .unwrap_or_revert();
+    .unwrap_or_revert_with(ApiError::User(201));
     runtime::put_key(
         &format!("{}_auction_contract_package_hash_wrapped", auction_desig),
         storage::new_uref(ContractPackageHash::new(
-            auction_contract_package_hash.into_hash().unwrap_or_revert(),
+            auction_contract_package_hash
+                .into_hash()
+                .unwrap_or_revert_with(ApiError::User(202)),
         ))
         .into(),
     );

@@ -85,7 +85,9 @@ pub fn emit(event: &AuctionEvent) {
 
 pub fn get_events_count() -> u32 {
     if let Some(Key::URef(uref)) = runtime::get_key(EVENTS_COUNT) {
-        return storage::read(uref).unwrap_or_revert().unwrap_or_revert();
+        return storage::read(uref)
+            .unwrap_or_revert_with(AuctionError::CannotReadKey)
+            .unwrap_or_revert_with(AuctionError::NamedKeyNotFound);
     }
     revert(AuctionError::BadKey)
 }
