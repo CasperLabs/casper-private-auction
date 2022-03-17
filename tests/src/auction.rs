@@ -30,29 +30,22 @@ pub struct AuctionContract {
 }
 
 impl AuctionContract {
-    pub fn deploy_with_default_args(english: bool, start_time: u64) -> Self {
+    pub fn deploy_english_with_default_args(english: bool, start_time: u64) -> Self {
         let mut auction_args = AuctionArgsBuilder::default();
-        if !english {
-            auction_args.set_dutch();
-        }
         auction_args.set_start_time(start_time);
-        Self::deploy_contracts(auction_args)
+        Self::deploy_contracts(auction_args, english)
     }
 
-    pub fn deploy(mut auction_args: AuctionArgsBuilder) -> Self {
-        Self::deploy_contracts(auction_args)
-    }
-
-    pub fn deploy_contracts(mut auction_args: AuctionArgsBuilder) -> Self {
+    pub fn deploy_contracts(mut auction_args: AuctionArgsBuilder, english: bool) -> Self {
         let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
         let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
         let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
-        let admin_pk: PublicKey = (&admin_secret).into();
+        let admin_pk: PublicKey = PublicKey::from(&admin_secret);
         let admin = admin_pk.to_account_hash();
-        let ali_pk: PublicKey = (&ali_secret).into();
+        let ali_pk: PublicKey = PublicKey::from(&ali_secret);
         let ali = ali_pk.to_account_hash();
-        let bob_pk: PublicKey = (&bob_secret).into();
+        let bob_pk: PublicKey = PublicKey::from(&bob_secret);
         let bob = bob_pk.to_account_hash();
 
         let mut builder = InMemoryWasmTestBuilder::default();
@@ -87,9 +80,10 @@ impl AuctionContract {
         auction_args.set_token_contract_hash(&nft_package);
         auction_args.set_kyc_package_hash(&kyc_package);
         auction_args.set_token_id(&token_id);
+        auction_args.set_is_english(english);
 
         let (auction_hash, auction_package) =
-            Self::deploy_auction(&mut builder, &admin, auction_args.build());
+            Self::deploy_auction(&mut builder, &admin, auction_args.build(), english);
         Self {
             builder,
             auction_hash,
@@ -185,8 +179,13 @@ impl AuctionContract {
         builder: &mut InMemoryWasmTestBuilder,
         admin: &AccountHash,
         auction_args: RuntimeArgs,
+        english: bool,
     ) -> (ContractHash, ContractPackageHash) {
-        let auction_code = PathBuf::from("casper-private-auction-installer.wasm");
+        let auction_code = PathBuf::from(if english {
+            "english-auction.wasm"
+        } else {
+            "dutch-auction.wasm"
+        });
         deploy(
             builder,
             admin,
@@ -430,13 +429,5 @@ impl AuctionContract {
             self.get_account_balance(&self.ali),
             self.get_account_balance(&self.bob),
         )
-    }
-
-    pub fn get_marketplace_balance(&self) -> U512 {
-        let account = self
-            .builder
-            .get_account(AccountHash::new([11_u8; 32]))
-            .expect("should get genesis account");
-        self.builder.get_purse_balance(account.main_purse())
     }
 }

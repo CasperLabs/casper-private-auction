@@ -17,11 +17,8 @@ pub struct AuctionArgsBuilder {
     token_contract_hash: ContractPackageHash,
     // into Key
     kyc_package_hash: ContractPackageHash,
-    // true is `ENGLISH` | false is `DUTCH`
-    is_english: bool,
-    // ENGLISH format cannot have a starting price, build turn it into option
-    starting_price: Option<U512>,
     reserve_price: U512,
+    starting_price: U512,
     token_id: String,
     pub start_time: u64,
     cancellation_time: u64,
@@ -30,8 +27,8 @@ pub struct AuctionArgsBuilder {
     bidder_count_cap: Option<u64>,
     auction_timer_extension: Option<u64>,
     minimum_bid_step: Option<U512>,
-    marketplace_account: AccountHash,
-    marketplace_commission: u32,
+    // just a trigger on this level, not included into the actual args
+    english: bool,
 }
 
 impl AuctionArgsBuilder {
@@ -47,9 +44,8 @@ impl AuctionArgsBuilder {
             beneficiary_account: *beneficiary,
             token_contract_hash: *token_contract_hash,
             kyc_package_hash: *kyc_package_hash,
-            is_english: english,
-            starting_price: None,
             reserve_price: U512::from(1000),
+            starting_price: U512::from(100000),
             token_id: token_id.to_string(),
             start_time,
             cancellation_time: 3000,
@@ -58,17 +54,8 @@ impl AuctionArgsBuilder {
             bidder_count_cap: None,
             auction_timer_extension: None,
             minimum_bid_step: None,
-            marketplace_account: AccountHash::new([11_u8; 32]),
-            marketplace_commission: 75,
+            english: true,
         }
-    }
-
-    pub fn set_english(&mut self) {
-        self.is_english = true;
-    }
-
-    pub fn set_dutch(&mut self) {
-        self.is_english = false;
     }
 
     pub fn set_beneficiary(&mut self, beneficiary: &AccountHash) {
@@ -87,12 +74,12 @@ impl AuctionArgsBuilder {
         self.kyc_package_hash = *kyc_package_hash;
     }
 
-    pub fn set_starting_price(&mut self, starting_price: Option<U512>) {
-        self.starting_price = starting_price;
-    }
-
     pub fn set_reserve_price(&mut self, reserve_price: U512) {
         self.reserve_price = reserve_price;
+    }
+
+    pub fn set_starting_price(&mut self, starting_price: U512) {
+        self.starting_price = starting_price;
     }
 
     pub fn set_start_time(&mut self, start_time: u64) {
@@ -119,25 +106,33 @@ impl AuctionArgsBuilder {
         self.minimum_bid_step = minimum_bid_step;
     }
 
+    pub fn set_is_english(&mut self, english: bool) {
+        self.english = english;
+    }
+
     pub fn build(&self) -> RuntimeArgs {
-        runtime_args! {
+        let mut args = runtime_args! {
             "beneficiary_account"=>Key::Account(self.beneficiary_account),
             "token_contract_hash"=>Key::Hash(self.token_contract_hash.value()),
             "kyc_package_hash"=>Key::Hash(self.kyc_package_hash.value()),
-            "format"=>if self.is_english{"ENGLISH"}else{"DUTCH"},
-            "starting_price"=> self.starting_price,
             "reserve_price"=>self.reserve_price,
             "token_id"=>self.token_id.to_owned(),
             "start_time" => self.start_time,
-            "cancellation_time" => self.start_time+self.cancellation_time,
             "end_time" => self.start_time+self.end_time,
             "name" => self.name.clone(),
-            "bidder_count_cap" => self.bidder_count_cap,
-            "auction_timer_extension" => self.auction_timer_extension,
-            "minimum_bid_step" => self.minimum_bid_step,
-            "marketplace_account" => self.marketplace_account,
-            "marketplace_commission" => self.marketplace_commission,
+        };
+        if self.english {
+            args.insert("bidder_count_cap", self.bidder_count_cap);
+            args.insert("auction_timer_extension", self.auction_timer_extension);
+            args.insert("minimum_bid_step", self.minimum_bid_step);
+            args.insert(
+                "cancellation_time",
+                self.start_time + self.cancellation_time,
+            );
+        } else {
+            args.insert("starting_price", self.starting_price);
         }
+        args
     }
 
     pub fn get_now_u64() -> u64 {
@@ -154,12 +149,11 @@ impl Default for AuctionArgsBuilder {
         let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
         let now: u64 = Self::get_now_u64();
         AuctionArgsBuilder {
-            beneficiary_account: AccountHash::from(&(&admin_secret).into()),
+            beneficiary_account: PublicKey::from(&admin_secret).to_account_hash(),
             token_contract_hash: ContractPackageHash::new([0u8; 32]),
             kyc_package_hash: ContractPackageHash::new([0u8; 32]),
-            is_english: true,
-            starting_price: None,
             reserve_price: U512::from(1000),
+            starting_price: U512::from(100000),
             token_id: "token_id".to_string(),
             start_time: now + 500,
             cancellation_time: 3000,
@@ -168,8 +162,7 @@ impl Default for AuctionArgsBuilder {
             bidder_count_cap: None,
             auction_timer_extension: None,
             minimum_bid_step: None,
-            marketplace_account: AccountHash::new([11_u8; 32]),
-            marketplace_commission: 75,
+            english: true,
         }
     }
 }

@@ -1,8 +1,8 @@
 [workspace]
 
 members = [
-    "casper-private-auction-core",
-    "casper-private-auction-installer",
+    "dutch",
+    "english",
     "bid-purse",
     "tests"
 ]

@@ -8,7 +8,7 @@ use casper_contract::{
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
-use casper_types::{account::AccountHash, Key, URef, U512};
+use casper_types::{account::AccountHash, ApiError, Key, URef, U512};
 
 use crate::error::AuctionError;
 
@@ -21,10 +21,10 @@ pub struct Bids {
 impl Bids {
     // Constructor for Bids. Should be used only once. For using the Bids use the `at` function.
     pub fn init() -> (URef, URef) {
-        let key_uref = storage::new_dictionary("bids_key")
-            .unwrap_or_revert_with(AuctionError::CannotCreateDictionary);
-        let index_uref = storage::new_dictionary("bids_index")
-            .unwrap_or_revert_with(AuctionError::CannotCreateDictionary);
+        let key_uref =
+            storage::new_dictionary("bids_key").unwrap_or_revert_with(ApiError::User(20));
+        let index_uref =
+            storage::new_dictionary("bids_index").unwrap_or_revert_with(ApiError::User(21));
         storage::dictionary_put(index_uref, "len", Some(0_u64));
         (key_uref, index_uref)
     }
@@ -32,20 +32,20 @@ impl Bids {
     // Fetches the dictionary system user the argument `name`.
     pub fn at() -> Bids {
         let key_uref_key: Key =
-            runtime::get_key("bids_key").unwrap_or_revert_with(AuctionError::DictionaryKeyNotFound);
-        let index_uref_key: Key = runtime::get_key("bids_index")
-            .unwrap_or_revert_with(AuctionError::DictionaryKeyNotFound);
+            runtime::get_key("bids_key").unwrap_or_revert_with(ApiError::User(22));
+        let index_uref_key: Key =
+            runtime::get_key("bids_index").unwrap_or_revert_with(ApiError::User(23));
 
         let key_uref: URef = *key_uref_key
             .as_uref()
-            .unwrap_or_revert_with(AuctionError::DictionaryKeyNotURef);
+            .unwrap_or_revert_with(ApiError::User(24));
         let index_uref: URef = *index_uref_key
             .as_uref()
-            .unwrap_or_revert_with(AuctionError::DictionaryKeyNotURef);
+            .unwrap_or_revert_with(ApiError::User(25));
 
         let len: Option<u64> = storage::dictionary_get(index_uref, "len")
-            .unwrap_or_revert_with(AuctionError::DictionaryGetFailLen)
-            .unwrap_or_revert_with(AuctionError::DictionaryGetNoValueLen);
+            .unwrap_or_revert_with(ApiError::User(26))
+            .unwrap_or_revert_with(ApiError::User(27));
         Bids {
             key_uref,
             index_uref,
@@ -56,21 +56,21 @@ impl Bids {
     // Get a key corresponding to an index.
     pub fn get_key_by_index(&self, index: u64) -> Option<AccountHash> {
         storage::dictionary_get(self.index_uref, &index.to_string())
-            .unwrap_or_revert_with(AuctionError::DictionaryGetFailGetByIndex)
+            .unwrap_or_revert_with(ApiError::User(28))
             .unwrap_or_default()
     }
 
     // Return the index a key is stored under.
     pub fn get_index_by_key(&self, key: &AccountHash) -> Option<u64> {
         storage::dictionary_get(self.index_uref, &key.to_string())
-            .unwrap_or_revert_with(AuctionError::DictionaryGetFailGetByKey)
+            .unwrap_or_revert_with(ApiError::User(29))
             .unwrap_or_default()
     }
 
     // If exists, returns the value stored under a key.
     pub fn get(&self, key: &AccountHash) -> Option<U512> {
         storage::dictionary_get(self.key_uref, &key.to_string())
-            .unwrap_or_revert_with(AuctionError::DictionaryGetFailBidsGet)
+            .unwrap_or_revert_with(ApiError::User(30))
             .unwrap_or_default()
     }
 
@@ -146,7 +146,7 @@ impl Bids {
                     }
                     self.pop();
                 }
-                core::cmp::Ordering::Less => return,
+                core::cmp::Ordering::Less => {}
             }
         }
     }
@@ -197,10 +197,8 @@ impl Bids {
         for i in 0..self.len {
             let key = self
                 .get_key_by_index(i)
-                .unwrap_or_revert_with(AuctionError::DictionaryGetNoValueGetByKey);
-            let value = self
-                .get(&key)
-                .unwrap_or_revert_with(AuctionError::DictionaryGetFailBidsGet);
+                .unwrap_or_revert_with(ApiError::User(31));
+            let value = self.get(&key).unwrap_or_revert_with(ApiError::User(32));
             ret.insert(key, value);
         }
         ret
@@ -216,17 +214,13 @@ impl Bids {
         if !self.is_empty() {
             let mut max_key = self
                 .get_key_by_index(0)
-                .unwrap_or_revert_with(AuctionError::DictionaryGetNoValueGetByIndex);
-            let mut max_value = self
-                .get(&max_key)
-                .unwrap_or_revert_with(AuctionError::DictionaryGetFailBidsGet);
+                .unwrap_or_revert_with(ApiError::User(33));
+            let mut max_value = self.get(&max_key).unwrap_or_revert_with(ApiError::User(34));
             for i in 1..self.len {
                 let key = self
                     .get_key_by_index(i)
-                    .unwrap_or_revert_with(AuctionError::DictionaryGetNoValueGetByIndex);
-                let value = self
-                    .get(&key)
-                    .unwrap_or_revert_with(AuctionError::DictionaryGetFailBidsGet);
+                    .unwrap_or_revert_with(ApiError::User(35));
+                let value = self.get(&key).unwrap_or_revert_with(ApiError::User(36));
                 if value > max_value {
                     max_key = key;
                     max_value = value;

@@ -25,7 +25,8 @@ pub mod utils;
 #[test]
 fn english_auction_bid_finalize_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     assert!(now < auction_contract.get_end());
     auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now);
@@ -41,7 +42,8 @@ fn english_auction_bid_finalize_test() {
 #[test]
 fn english_auction_cancel_only_bid_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     assert!(now < auction_contract.get_end());
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1);
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3);
@@ -54,7 +56,8 @@ fn english_auction_cancel_only_bid_test() {
 #[should_panic = "User(3)"]
 fn english_auction_bid_cancel_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     assert!(now < auction_contract.get_end());
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1);
     auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now + 2);
@@ -73,9 +76,8 @@ fn english_auction_bid_cancel_test() {
 fn dutch_auction_bid_finalize_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
-    auction_args.set_starting_price(Some(U512::from(40000)));
-    auction_args.set_dutch();
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    auction_args.set_starting_price(U512::from(40000));
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args, false);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     assert!(auction_contract.is_finalized());
     assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
@@ -83,15 +85,6 @@ fn dutch_auction_bid_finalize_test() {
         U512::from(40000),
         auction_contract.get_winning_bid().unwrap()
     );
-}
-
-// Finalizing the auction before it ends results in User(0) error
-#[test]
-#[should_panic = "User(0)"]
-fn english_auction_early_finalize_test() {
-    let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
-    auction_contract.finalize(&auction_contract.admin.clone(), now + 300);
 }
 
 // User error 1 happens if not the correct user is trying to interact with the auction.
@@ -102,7 +95,8 @@ fn english_auction_early_finalize_test() {
 #[should_panic = "User(2)"]
 fn english_auction_bid_too_late_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.bid(
         &auction_contract.bob.clone(),
         U512::from(40000),
@@ -115,7 +109,8 @@ fn english_auction_bid_too_late_test() {
 #[should_panic = "User(19)"]
 fn english_auction_bid_too_low_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(1), now + 1000);
 }
 
@@ -124,9 +119,8 @@ fn english_auction_bid_too_low_test() {
 fn dutch_auction_bid_too_low_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
-    auction_args.set_starting_price(Some(U512::from(40000)));
-    auction_args.set_dutch();
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    auction_args.set_starting_price(U512::from(40000));
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args, false);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
 }
 
@@ -135,7 +129,8 @@ fn dutch_auction_bid_too_low_test() {
 #[should_panic = "User(4)"]
 fn english_auction_bid_after_finalized_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
     assert!(auction_contract.is_finalized());
     auction_contract.finalize(&auction_contract.admin.clone(), now + 3501);
@@ -148,9 +143,8 @@ fn english_auction_bid_after_finalized_test() {
 fn dutch_auction_already_taken_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
-    auction_args.set_starting_price(Some(U512::from(40000)));
-    auction_args.set_dutch();
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    auction_args.set_starting_price(U512::from(40000));
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args, false);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1001);
 }
@@ -160,7 +154,8 @@ fn dutch_auction_already_taken_test() {
 #[should_panic = "User(6)"]
 fn english_auction_no_bid_cancel_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 2000);
 }
 
@@ -168,62 +163,10 @@ fn english_auction_no_bid_cancel_test() {
 #[should_panic = "User(7)"]
 fn english_auction_bid_late_cancel_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1);
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3000);
-}
-
-// Deploying an auction with neither ENGLISH nor DUTCH format results in User(8) error
-#[test]
-#[should_panic = "User(8)"]
-fn auction_unknown_format_test() {
-    let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
-    let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
-    let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
-
-    let admin_pk: PublicKey = (&admin_secret).into();
-    let admin = admin_pk.to_account_hash();
-    let ali_pk: PublicKey = (&ali_secret).into();
-    let ali = ali_pk.to_account_hash();
-    let bob_pk: PublicKey = (&bob_secret).into();
-    let bob = bob_pk.to_account_hash();
-
-    let mut builder = InMemoryWasmTestBuilder::default();
-    builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
-    builder.exec(fund_account(&admin)).expect_success().commit();
-    builder.exec(fund_account(&ali)).expect_success().commit();
-    builder.exec(fund_account(&bob)).expect_success().commit();
-
-    let (kyc_hash, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
-
-    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &admin);
-    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &ali);
-    AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &bob);
-
-    let (nft_hash, nft_package) = AuctionContract::deploy_nft(&mut builder, &admin, kyc_package);
-    let token_id = String::from("custom_token_id");
-
-    let auction_args = runtime_args! {
-        "beneficiary_account"=>Key::Account(admin),
-        "token_contract_hash"=>Key::Hash(nft_package.value()),
-        "kyc_package_hash" => Key::Hash(kyc_package.value()),
-        "format"=> "WOLOLO",
-        "starting_price"=> None::<U512>,
-        "reserve_price"=>U512::from(300),
-        "token_id"=>token_id,
-        "start_time" => 1,
-        "cancellation_time" => 2,
-        "end_time" => 3,
-        "name" => "test",
-        "bidder_count_cap" => Some(10_u64),
-        "auction_timer_extension" => None::<u64>,
-        "minimum_bid_step"=> None::<U512>,
-        "marketplace_account" => AccountHash::new([11_u8; 32]),
-        "marketplace_commission" => 75
-    };
-
-    let (auction_hash, auction_package) =
-        AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
 }
 
 // Deploying with wrong times reverts with User(9) error
@@ -234,11 +177,11 @@ fn auction_bad_times_test() {
     let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
     let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
-    let admin_pk: PublicKey = (&admin_secret).into();
+    let admin_pk: PublicKey = PublicKey::from(&admin_secret);
     let admin = admin_pk.to_account_hash();
-    let ali_pk: PublicKey = (&ali_secret).into();
+    let ali_pk: PublicKey = PublicKey::from(&ali_secret);
     let ali = ali_pk.to_account_hash();
-    let bob_pk: PublicKey = (&bob_secret).into();
+    let bob_pk: PublicKey = PublicKey::from(&bob_secret);
     let bob = bob_pk.to_account_hash();
 
     let mut builder = InMemoryWasmTestBuilder::default();
@@ -260,7 +203,6 @@ fn auction_bad_times_test() {
         "beneficiary_account"=>Key::Account(admin),
         "token_contract_hash"=>Key::Hash(nft_package.value()),
         "kyc_package_hash" => Key::Hash(kyc_package.value()),
-        "format"=> "ENGLISH",
         "starting_price"=> None::<U512>,
         "reserve_price"=>U512::from(300),
         "token_id"=>token_id,
@@ -270,32 +212,19 @@ fn auction_bad_times_test() {
         "name" => "test",
         "bidder_count_cap" => Some(10_u64),
         "auction_timer_extension" => None::<u64>,
-        "minimum_bid_step"=> None::<U512>,
-        "marketplace_account" => AccountHash::new([11_u8; 32]),
-        "marketplace_commission" => 75
+        "minimum_bid_step"=> None::<U512>
     };
 
     let (auction_hash, auction_package) =
-        AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
-}
-
-// Any combination of bad prices on auction deployment returns User(10)
-#[test]
-#[should_panic = "User(10)"]
-fn dutch_auction_no_starting_price_test() {
-    let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_args = auction_args::AuctionArgsBuilder::default();
-    auction_args.set_starting_price(None);
-    auction_args.set_dutch();
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
-    auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
+        AuctionContract::deploy_auction(&mut builder, &admin, auction_args, true);
 }
 
 #[test]
 #[should_panic = "User(11)"]
 fn english_auction_bid_early_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now - 1000);
 }
 
@@ -306,11 +235,11 @@ fn auction_bid_no_kyc_token_test() {
     let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
     let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
-    let admin_pk: PublicKey = (&admin_secret).into();
+    let admin_pk: PublicKey = PublicKey::from(&admin_secret);
     let admin = admin_pk.to_account_hash();
-    let ali_pk: PublicKey = (&ali_secret).into();
+    let ali_pk: PublicKey = PublicKey::from(&ali_secret);
     let ali = ali_pk.to_account_hash();
-    let bob_pk: PublicKey = (&bob_secret).into();
+    let bob_pk: PublicKey = PublicKey::from(&bob_secret);
     let bob = bob_pk.to_account_hash();
 
     let mut builder = InMemoryWasmTestBuilder::default();
@@ -329,7 +258,6 @@ fn auction_bid_no_kyc_token_test() {
         "beneficiary_account"=>Key::Account(admin),
         "token_contract_hash"=>Key::Hash(nft_package.value()),
         "kyc_package_hash" => Key::Hash(kyc_package.value()),
-        "format"=> "ENGLISH",
         "starting_price"=> None::<U512>,
         "reserve_price"=>U512::from(300),
         "token_id"=>token_id,
@@ -339,13 +267,11 @@ fn auction_bid_no_kyc_token_test() {
         "name" => "test",
         "bidder_count_cap" => Some(10_u64),
         "auction_timer_extension" => None::<u64>,
-        "minimum_bid_step"=> None::<U512>,
-        "marketplace_account" => AccountHash::new([11_u8; 32]),
-        "marketplace_commission" => 75
+        "minimum_bid_step"=> None::<U512>
     };
 
     let (auction_hash, auction_package) =
-        AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
+        AuctionContract::deploy_auction(&mut builder, &admin, auction_args, true);
     //bid
     let session_code = PathBuf::from("bid-purse.wasm");
     deploy(
@@ -364,7 +290,8 @@ fn auction_bid_no_kyc_token_test() {
 #[test]
 fn cancel_auction_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
 }
 
@@ -372,7 +299,8 @@ fn cancel_auction_test() {
 #[should_panic = "User(22)"]
 fn cancel_auction_after_bid_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
 }
@@ -380,7 +308,8 @@ fn cancel_auction_after_bid_test() {
 #[test]
 fn cancel_auction_after_cancelled_bid_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
-    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let mut auction_contract =
+        auction::AuctionContract::deploy_english_with_default_args(true, now);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1001);
     auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1002)
@@ -392,7 +321,7 @@ fn english_auction_bidder_count_limit_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_bidder_count_cap(Some(1));
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args, true);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
     auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
     auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1002);
@@ -410,7 +339,7 @@ fn english_increase_time_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_auction_timer_extension(Some(10000));
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args, true);
     assert_eq!(auction_contract.get_end(), now + 4000);
 
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
@@ -427,7 +356,7 @@ fn english_auction_bid_step_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_minimum_bid_step(Some(U512::from(10000)));
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args, true);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
     auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
     auction_contract.finalize(&auction_contract.admin.clone(), now + 4000);
@@ -442,22 +371,107 @@ fn english_auction_bid_step_test_failing() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
     auction_args.set_minimum_bid_step(Some(U512::from(10001)));
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
+    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args, true);
     auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
     auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
 }
 
 #[test]
-fn marketplace_commission_test() {
+fn english_gas_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_args = auction_args::AuctionArgsBuilder::default();
-    let mut auction_contract = auction::AuctionContract::deploy_contracts(auction_args);
-    auction_contract.bid(
-        &auction_contract.ali.clone(),
-        U512::from(100000),
-        now + 1000,
+    let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
+    let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
+    let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
+
+    let admin_pk: PublicKey = PublicKey::from(&admin_secret);
+    let admin = admin_pk.to_account_hash();
+    let ali_pk: PublicKey = PublicKey::from(&ali_secret);
+    let ali = ali_pk.to_account_hash();
+    let bob_pk: PublicKey = PublicKey::from(&bob_secret);
+    let bob = bob_pk.to_account_hash();
+
+    let mut builder = InMemoryWasmTestBuilder::default();
+    builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+    builder.exec(fund_account(&admin)).expect_success().commit();
+    builder.exec(fund_account(&ali)).expect_success().commit();
+    builder.exec(fund_account(&bob)).expect_success().commit();
+
+    let (kyc_hash, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
+    let (nft_hash, nft_package) = AuctionContract::deploy_nft(&mut builder, &admin, kyc_package);
+
+    let token_id = String::from("custom_token_id");
+    let token_meta = btreemap! {
+        "origin".to_string() => "fire".to_string()
+    };
+    let commissions = BTreeMap::new();
+    AuctionContract::mint_nft(
+        &mut builder,
+        &nft_package,
+        &Key::Account(admin),
+        &token_id,
+        &token_meta,
+        &admin,
+        commissions,
     );
-    auction_contract.finalize(&auction_contract.admin.clone(), now + 4000);
-    assert!(auction_contract.is_finalized());
-    assert_eq!(auction_contract.get_marketplace_balance(), U512::from(7500));
+
+    auction_args.set_beneficiary(&admin);
+    auction_args.set_token_contract_hash(&nft_package);
+    auction_args.set_kyc_package_hash(&kyc_package);
+    auction_args.set_token_id(&token_id);
+    auction_args.set_is_english(true);
+
+    let (auction_hash, auction_package) =
+        AuctionContract::deploy_auction(&mut builder, &admin, auction_args.build(), true);
+    println!("english gas:{}", builder.last_exec_gas_cost());
+}
+
+#[test]
+fn dutch_gas_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_args = auction_args::AuctionArgsBuilder::default();
+    let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
+    let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
+    let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
+
+    let admin_pk: PublicKey = PublicKey::from(&admin_secret);
+    let admin = admin_pk.to_account_hash();
+    let ali_pk: PublicKey = PublicKey::from(&ali_secret);
+    let ali = ali_pk.to_account_hash();
+    let bob_pk: PublicKey = PublicKey::from(&bob_secret);
+    let bob = bob_pk.to_account_hash();
+
+    let mut builder = InMemoryWasmTestBuilder::default();
+    builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+    builder.exec(fund_account(&admin)).expect_success().commit();
+    builder.exec(fund_account(&ali)).expect_success().commit();
+    builder.exec(fund_account(&bob)).expect_success().commit();
+
+    let (kyc_hash, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
+    let (nft_hash, nft_package) = AuctionContract::deploy_nft(&mut builder, &admin, kyc_package);
+
+    let token_id = String::from("custom_token_id");
+    let token_meta = btreemap! {
+        "origin".to_string() => "fire".to_string()
+    };
+    let commissions = BTreeMap::new();
+    AuctionContract::mint_nft(
+        &mut builder,
+        &nft_package,
+        &Key::Account(admin),
+        &token_id,
+        &token_meta,
+        &admin,
+        commissions,
+    );
+
+    auction_args.set_beneficiary(&admin);
+    auction_args.set_token_contract_hash(&nft_package);
+    auction_args.set_kyc_package_hash(&kyc_package);
+    auction_args.set_token_id(&token_id);
+    auction_args.set_is_english(false);
+
+    let (auction_hash, auction_package) =
+        AuctionContract::deploy_auction(&mut builder, &admin, auction_args.build(), false);
+    println!("dutch gas:{}", builder.last_exec_gas_cost());
 }

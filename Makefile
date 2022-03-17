@@ -22,8 +22,9 @@ format:
 lint: clippy format
 
 build-contract:
-	cargo build --release -p casper-private-auction-installer -p bid-purse --target wasm32-unknown-unknown
-	wasm-strip target/wasm32-unknown-unknown/release/casper-private-auction-installer.wasm
+	cargo build --release -p english-auction -p dutch-auction -p bid-purse --target wasm32-unknown-unknown
+	wasm-strip target/wasm32-unknown-unknown/release/english-auction.wasm
+	wasm-strip target/wasm32-unknown-unknown/release/dutch-auction.wasm
 	wasm-strip target/wasm32-unknown-unknown/release/bid-purse.wasm
 
 clean:

@@ -6,8 +6,9 @@ use alloc::string::{String, ToString};
 use casper_contract::contract_api::runtime::{self, revert};
 use casper_contract::contract_api::storage;
 use casper_contract::unwrap_or_revert::UnwrapOrRevert;
-use casper_types::Key;
+use casper_types::bytesrepr::{FromBytes, ToBytes};
 use casper_types::{account::AccountHash, U512};
+use casper_types::{CLTyped, Key, URef};
 pub enum AuctionEvent {
     Bid {
         bidder: AccountHash,
@@ -25,8 +26,38 @@ pub enum AuctionEvent {
     },
 }
 
+struct Dict {
+    uref: URef,
+}
+
+impl Dict {
+    pub fn at(name: &str) -> Dict {
+        let key: Key = runtime::get_key(name).unwrap_or_revert();
+        let uref: URef = *key.as_uref().unwrap_or_revert();
+        Dict { uref }
+    }
+
+    pub fn _get<T: CLTyped + FromBytes>(&self, key: &str) -> Option<T> {
+        storage::dictionary_get(self.uref, key)
+            .unwrap_or_revert()
+            .unwrap_or_default()
+    }
+
+    pub fn set<T: CLTyped + ToBytes>(&self, key: &str, value: T) {
+        storage::dictionary_put(self.uref, key, Some(value));
+    }
+
+    pub fn _remove<T: CLTyped + ToBytes>(&self, key: &str) {
+        storage::dictionary_put(self.uref, key, Option::<T>::None);
+    }
+}
+
 pub fn emit(event: &AuctionEvent) {
-    let mut events_count = get_events_count();
+    let mut events_count: u32 = if let Some(Key::URef(uref)) = runtime::get_key(EVENTS_COUNT) {
+        storage::read(uref).unwrap_or_revert().unwrap_or_revert()
+    } else {
+        revert(AuctionError::BadKey)
+    };
 
     let (emit_event, event_id): (BTreeMap<&str, String>, String) = match event {
         AuctionEvent::Bid { bidder, bid } => {
@@ -78,16 +109,14 @@ pub fn emit(event: &AuctionEvent) {
     };
     events_count += 1;
 
-    let events_dict = crate::Dict::at(EVENTS);
+    let events_dict = Dict::at(EVENTS);
     events_dict.set(&event_id, emit_event);
     set_events_count(events_count);
 }
 
 pub fn get_events_count() -> u32 {
     if let Some(Key::URef(uref)) = runtime::get_key(EVENTS_COUNT) {
-        return storage::read(uref)
-            .unwrap_or_revert_with(AuctionError::CannotReadKey)
-            .unwrap_or_revert_with(AuctionError::NamedKeyNotFound);
+        return storage::read(uref).unwrap_or_revert().unwrap_or_revert();
     }
     revert(AuctionError::BadKey)
 }

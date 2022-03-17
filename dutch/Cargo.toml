@@ -1,0 +1,15 @@
+[package]
+name = "dutch-auction"
+version = "1.0.0"
+edition = "2018"
+
+[dependencies]
+casper-contract = "1.4.3"
+casper-types = "1.4.4"
+
+[[bin]]
+name = "dutch-auction"
+path = "src/main.rs"
+bench = false
+doctest = false
+test = false
