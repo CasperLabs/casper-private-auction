@@ -235,12 +235,18 @@ impl AuctionContract {
         token_id: &str,
         token_meta: &BTreeMap<String, String>,
         sender: &AccountHash,
-        commissions: BTreeMap<String, String>,
+        mut commissions: BTreeMap<String, String>,
     ) {
         let mut gauge: BTreeMap<String, String> = BTreeMap::new();
         gauge.insert("gauge".to_string(), "is_gaugy".to_string());
         let mut warehouse: BTreeMap<String, String> = BTreeMap::new();
         warehouse.insert("ware".to_string(), "house".to_string());
+        commissions.insert(
+            "comm_account".to_string(),
+            "Key::Account(7de52a3013f609faa38ae99af4350da6aa6b69bec0e4087ecae87c2b9486a265)"
+                .to_string(),
+        );
+        commissions.insert("comm_rate".to_string(), "55".to_string());
         let args = runtime_args! {
             "recipient" => *recipient,
             "token_ids" => Some(vec![token_id.to_string()]),
@@ -436,6 +442,19 @@ impl AuctionContract {
         let account = self
             .builder
             .get_account(AccountHash::new([11_u8; 32]))
+            .expect("should get genesis account");
+        self.builder.get_purse_balance(account.main_purse())
+    }
+
+    pub fn get_comm_balance(&self) -> U512 {
+        let account = self
+            .builder
+            .get_account(
+                AccountHash::from_formatted_str(
+                    "account-hash-7de52a3013f609faa38ae99af4350da6aa6b69bec0e4087ecae87c2b9486a265",
+                )
+                .unwrap(),
+            )
             .expect("should get genesis account");
         self.builder.get_purse_balance(account.main_purse())
     }

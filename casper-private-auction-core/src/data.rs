@@ -408,11 +408,18 @@ fn add_empty_dict(named_keys: &mut NamedKeys, name: &str) {
 fn string_to_account_hash(account_string: &str) -> AccountHash {
     let account = if account_string.starts_with("account-hash-") {
         AccountHash::from_formatted_str(account_string)
+    } else if account_string.starts_with("Key::Account(") {
+        AccountHash::from_formatted_str(
+            account_string
+                .replace("Key::Account(", "account-hash-")
+                .strip_suffix(")")
+                .unwrap_or_revert(),
+        )
     } else {
         AccountHash::from_formatted_str(&format!("account-hash-{}", account_string))
     };
     match account {
-        Ok(acc) => acc,
+        Ok(acc) => return acc,
         Err(_e) => revert(AuctionError::CommissionAccountIncorrectSerialization),
     }
 }
