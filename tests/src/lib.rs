@@ -181,11 +181,11 @@ fn auction_unknown_format_test() {
     let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
     let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
-    let admin_pk: PublicKey = (&admin_secret).into();
+    let admin_pk: PublicKey = PublicKey::from(&admin_secret);
     let admin = admin_pk.to_account_hash();
-    let ali_pk: PublicKey = (&ali_secret).into();
+    let ali_pk: PublicKey = PublicKey::from(&ali_secret);
     let ali = ali_pk.to_account_hash();
-    let bob_pk: PublicKey = (&bob_secret).into();
+    let bob_pk: PublicKey = PublicKey::from(&bob_secret);
     let bob = bob_pk.to_account_hash();
 
     let mut builder = InMemoryWasmTestBuilder::default();
@@ -234,11 +234,11 @@ fn auction_bad_times_test() {
     let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
     let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
-    let admin_pk: PublicKey = (&admin_secret).into();
+    let admin_pk: PublicKey = PublicKey::from(&admin_secret);
     let admin = admin_pk.to_account_hash();
-    let ali_pk: PublicKey = (&ali_secret).into();
+    let ali_pk: PublicKey = PublicKey::from(&ali_secret);
     let ali = ali_pk.to_account_hash();
-    let bob_pk: PublicKey = (&bob_secret).into();
+    let bob_pk: PublicKey = PublicKey::from(&bob_secret);
     let bob = bob_pk.to_account_hash();
 
     let mut builder = InMemoryWasmTestBuilder::default();
@@ -306,11 +306,11 @@ fn auction_bid_no_kyc_token_test() {
     let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
     let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
 
-    let admin_pk: PublicKey = (&admin_secret).into();
+    let admin_pk: PublicKey = PublicKey::from(&admin_secret);
     let admin = admin_pk.to_account_hash();
-    let ali_pk: PublicKey = (&ali_secret).into();
+    let ali_pk: PublicKey = PublicKey::from(&ali_secret);
     let ali = ali_pk.to_account_hash();
-    let bob_pk: PublicKey = (&bob_secret).into();
+    let bob_pk: PublicKey = PublicKey::from(&bob_secret);
     let bob = bob_pk.to_account_hash();
 
     let mut builder = InMemoryWasmTestBuilder::default();

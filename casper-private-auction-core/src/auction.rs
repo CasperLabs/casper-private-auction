@@ -55,6 +55,12 @@ impl Auction {
         } else {
             new_bid
         };
+        if !bidder_purse.is_writeable() || !bidder_purse.is_readable() {
+            runtime::revert(AuctionError::BidderPurseBadPermission)
+        }
+        if !auction_purse.is_addable() {
+            runtime::revert(AuctionError::AuctionPurseNotAddable)
+        }
         system::transfer_from_purse_to_purse(bidder_purse, auction_purse, bid_amount, None)
             .unwrap_or_revert_with(AuctionError::TransferBidToAuction);
         bids.replace(&bidder, new_bid);
@@ -197,7 +203,6 @@ impl crate::AuctionLogic for Auction {
             runtime::revert(AuctionError::BidBelowReserve);
         }
         let bidder_purse = runtime::get_named_arg::<URef>(crate::data::BID_PURSE);
-
         // Adding the bid, doing the purse transfer and resetting the winner if necessary, as well as possibly ending a Dutch auction
         let winner = AuctionData::get_winner();
         let price = AuctionData::get_price();

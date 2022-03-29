@@ -1,6 +1,6 @@
 [package]
 name = "tests"
-version = "0.8.1"
+version = "0.9.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,7 +9,7 @@ edition = "2018"
 casper-contract = { version = "1.4.3", default-features = false, features = ["test-support"] }
 casper-engine-test-support = { version = "2.0.3", features = ["test-support"] }
 casper-execution-engine = "1.4.2"
-casper-types = "1.4.4"
+casper-types = "1.4.6"
 maplit = "*"
 hex = "*"
 rand = "*"

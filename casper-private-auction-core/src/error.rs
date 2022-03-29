@@ -55,6 +55,8 @@ pub enum AuctionError {
     DictionaryGetFailBidsGet = 51,
     DictionaryGetNoValueBidsGet = 52,
     KeyNotUref = 53,
+    BidderPurseBadPermission = 54,
+    AuctionPurseNotAddable = 55,
 }
 
 impl From<AuctionError> for ApiError {

@@ -1,6 +1,6 @@
 [package]
 name = "casper-private-auction-installer"
-version = "0.8.1"
+version = "0.9.0"
 authors = ["Alexander Limonov <alimonov@casperlabs.io>"]
 edition = "2018"
 
@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 casper-contract = "1.4.3"
-casper-types = "1.4.4"
+casper-types = "1.4.6"
 casper-private-auction-core = { path = "../casper-private-auction-core"}
 
 [[bin]]

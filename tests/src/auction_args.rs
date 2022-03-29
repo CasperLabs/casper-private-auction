@@ -154,7 +154,7 @@ impl Default for AuctionArgsBuilder {
         let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
         let now: u64 = Self::get_now_u64();
         AuctionArgsBuilder {
-            beneficiary_account: AccountHash::from(&(&admin_secret).into()),
+            beneficiary_account: AccountHash::from(&PublicKey::from(&admin_secret)),
             token_contract_hash: ContractPackageHash::new([0u8; 32]),
             kyc_package_hash: ContractPackageHash::new([0u8; 32]),
             is_english: true,

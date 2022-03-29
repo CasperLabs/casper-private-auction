@@ -146,7 +146,7 @@ impl Bids {
                     }
                     self.pop();
                 }
-                core::cmp::Ordering::Less => return,
+                core::cmp::Ordering::Less => (),
             }
         }
     }

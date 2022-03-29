@@ -412,14 +412,14 @@ fn string_to_account_hash(account_string: &str) -> AccountHash {
         AccountHash::from_formatted_str(
             account_string
                 .replace("Key::Account(", "account-hash-")
-                .strip_suffix(")")
+                .strip_suffix(')')
                 .unwrap_or_revert(),
         )
     } else {
         AccountHash::from_formatted_str(&format!("account-hash-{}", account_string))
     };
     match account {
-        Ok(acc) => return acc,
+        Ok(acc) => acc,
         Err(_e) => revert(AuctionError::CommissionAccountIncorrectSerialization),
     }
 }
