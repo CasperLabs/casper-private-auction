@@ -483,14 +483,18 @@ fn english_auction_bid_extend_finalize_test() {
 fn english_auction_bid_delta_finalize_test() {
     let now = auction_args::AuctionArgsBuilder::get_now_u64();
     let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    let bob = auction_contract.bob;
     assert!(now < auction_contract.get_end());
-    auction_contract.delta_bid(&auction_contract.bob.clone(), U512::from(30000), now);
-    auction_contract.delta_bid(&auction_contract.bob.clone(), U512::from(40000), now);
+    println!("{}", auction_contract.get_account_balance(&bob));
+    auction_contract.delta_bid(&bob, U512::from(5_000_u64), now);
+    println!("{}", auction_contract.get_account_balance(&bob));
+    auction_contract.delta_bid(&bob, U512::from(8_000_u64), now);
+    println!("{}", auction_contract.get_account_balance(&bob));
     auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
     assert!(auction_contract.is_finalized());
     assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
     assert_eq!(
-        U512::from(40000),
+        U512::from(8_000_u64),
         auction_contract.get_winning_bid().unwrap()
     );
 }

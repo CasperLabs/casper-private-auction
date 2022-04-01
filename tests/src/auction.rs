@@ -454,7 +454,7 @@ impl AuctionContract {
     }
 
     /// Getter function for the balance of an account.
-    fn get_account_balance(&self, account_key: &AccountHash) -> U512 {
+    pub fn get_account_balance(&self, account_key: &AccountHash) -> U512 {
         let account = self
             .builder
             .get_account(*account_key)
