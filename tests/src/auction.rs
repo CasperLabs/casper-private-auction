@@ -316,6 +316,22 @@ impl AuctionContract {
         );
     }
 
+    pub fn extend_bid(&mut self, bidder: &AccountHash, bid: U512, block_time: u64) {
+        let session_code = PathBuf::from("extend-bid-purse.wasm");
+        deploy(
+            &mut self.builder,
+            bidder,
+            &DeploySource::Code(session_code),
+            runtime_args! {
+                "amount" => bid,
+                "purse_name" => "my_auction_purse",
+                "auction_contract" => self.auction_hash
+            },
+            true,
+            Some(block_time),
+        );
+    }
+
     pub fn cancel_auction(&mut self, caller: &AccountHash, time: u64) {
         self.call(caller, "cancel_auction", runtime_args! {}, time)
     }

@@ -462,3 +462,19 @@ fn marketplace_commission_test() {
     assert_eq!(auction_contract.get_marketplace_balance(), U512::from(7500));
     assert!(auction_contract.get_comm_balance() > U512::from(0));
 }
+
+#[test]
+fn english_auction_bid_extend_finalize_test() {
+    let now = auction_args::AuctionArgsBuilder::get_now_u64();
+    let mut auction_contract = auction::AuctionContract::deploy_with_default_args(true, now);
+    assert!(now < auction_contract.get_end());
+    auction_contract.extend_bid(&auction_contract.bob.clone(), U512::from(30000), now);
+    auction_contract.extend_bid(&auction_contract.bob.clone(), U512::from(10000), now);
+    auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
+    assert!(auction_contract.is_finalized());
+    assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
+    assert_eq!(
+        U512::from(40000),
+        auction_contract.get_winning_bid().unwrap()
+    );
+}

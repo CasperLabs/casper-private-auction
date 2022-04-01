@@ -2,17 +2,17 @@
 #![no_main]
 
 extern crate alloc;
-use alloc::{format, string::String, vec};
+use alloc::{boxed::Box, format, string::String, vec};
 use casper_contract::{
     contract_api::{
-        runtime::{self},
+        runtime::{self, get_caller},
         storage, system,
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
 use casper_types::{
-    runtime_args, ApiError, CLType, ContractPackageHash, EntryPoint, EntryPointAccess,
+    runtime_args, ApiError, CLType, CLValue, ContractPackageHash, EntryPoint, EntryPointAccess,
     EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
 };
 
@@ -34,6 +34,13 @@ pub extern "C" fn finalize() {
 #[no_mangle]
 pub extern "C" fn cancel_auction() {
     Auction::cancel_auction();
+}
+
+#[no_mangle]
+pub extern "C" fn get_bid() {
+    let bids = Bids::at();
+    let bid = bids.get(&get_caller());
+    runtime::ret(CLValue::from_t(bid).unwrap_or_revert());
 }
 
 #[no_mangle]
@@ -79,6 +86,14 @@ pub fn get_entry_points() -> EntryPoints {
         data::CANCEL_AUCTION_FUNC,
         vec![],
         CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+
+    entry_points.add_entry_point(EntryPoint::new(
+        "get_bid",
+        vec![],
+        CLType::Option(Box::new(CLType::U512)),
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));
