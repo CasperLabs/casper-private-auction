@@ -26,6 +26,7 @@ build-contract:
 	wasm-strip target/wasm32-unknown-unknown/release/casper-private-auction-installer.wasm
 	wasm-strip target/wasm32-unknown-unknown/release/bid-purse.wasm
 	wasm-strip target/wasm32-unknown-unknown/release/extend-bid-purse.wasm
+	wasm-strip target/wasm32-unknown-unknown/release/delta-bid-purse.wasm
 
 clean:
 	cargo clean
