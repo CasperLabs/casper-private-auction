@@ -1,9 +1,10 @@
 [workspace]
 
 members = [
-    "casper-civic-verifier",
     "casper-private-auction-core",
-    "casper-private-auction-installer"
+    "casper-private-auction-installer",
+    "bid-purse",
+    "tests"
 ]
 
 [profile.release]

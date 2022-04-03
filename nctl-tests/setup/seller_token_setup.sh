@@ -1,50 +1,91 @@
 #!/bin/bash
 
+CWD=$(pwd)
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$parent_path"
 . misc/client_put_deploy_config.sh
+cd $CWD
 
 SELLER_KEY=$(nctl-view-user-account user=1\
-  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 SELLER_PURSE=$(nctl-view-user-account user=1\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
 
-SELLER_ACCOUNT=$(nctl-view-user-account user=1\
-  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z]{64}")
+BUYER_2_KEY=$(nctl-view-user-account user=2\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 BUYER_2_PURSE=$(nctl-view-user-account user=2\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
+
+BUYER_3_KEY=$(nctl-view-user-account user=3\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 BUYER_3_PURSE=$(nctl-view-user-account user=3\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
+
+BUYER_4_KEY=$(nctl-view-user-account user=4\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 BUYER_4_PURSE=$(nctl-view-user-account user=4\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
+
+BUYER_5_KEY=$(nctl-view-user-account user=5\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
 
 BUYER_5_PURSE=$(nctl-view-user-account user=5\
-  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z]{64}-007")
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
 
-. actions/deploy_nft.sh
+. setup/actions/deploy_kyc.sh
+
+sleep 90
+
+KYC_CONTRACT_HASH=$(nctl-view-user-account user=1\
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestKYCNFT_contract_hash") | .key'\
+  | tr -d '"')
+
+KYC_PACKAGE_HASH=$(nctl-view-user-account user=1\
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestKYCNFT_package_hash") | .key'\
+  | tr -d '"')
+
+. setup/actions/grant_gatekeeper.sh
+
+. setup/actions/deploy_nft.sh
 
 sleep 90
 
 TOKEN_CONTRACT_HASH=$(nctl-view-user-account user=1\
-  | grep -Pom1 "(?<=key\": \")hash-[0-9|a-z]{64}")
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestCaskNFT_contract_hash") | .key'\
+  | tr -d '"')
 
-echo "Obtained seller key $SELLER_KEY, seller account $SELLER_ACCOUNT and contract hash $TOKEN_CONTRACT_HASH"
+TOKEN_PACKAGE_HASH=$(nctl-view-user-account user=1\
+  | tr -d "\n"\
+  | grep -o  "{.*"\
+  | jq '.stored_value.Account.named_keys[] | select(.name == "TestCaskNFT_package_hash") | .key'\
+  | tr -d '"')
 
-DRAGONS_MINT_DEPLOY=$(casper-client put-deploy\
-        --chain-name $NETWORK_NAME\
-        --node-address $NODE_1_ADDRESS\
-        --secret-key $USER_1_SECRET_KEY\
-        --payment-amount $GAS_LIMIT\
-        --session-hash $TOKEN_CONTRACT_HASH\
-        --session-entry-point "mint_one"\
-        --session-arg "recipient:key='$SELLER_KEY'"\
-        --session-arg "token_meta:string=''"\
-        | jq .result.deploy_hash\
-        | tr -d '"')
+echo "Obtained the following hashes:
+ seller key - $SELLER_KEY
+ KYC contract hash - $KYC_CONTRACT_HASH
+ KYC contract package hash - $KYC_PACKAGE_HASH
+ NFT contract hash - $TOKEN_CONTRACT_HASH
+ NFT contract package hash - $TOKEN_PACKAGE_HASH
+ "
+
+echo "Constructing complex args"
+
+cd setup/fixtures
+#./metacask-runtime-arg-builder $SELLER_KEY $SELLER_KEY "artist,$BUYER_5_KEY,100|broker,$BUYER_4_KEY,200"
+./metacask-runtime-arg-builder $SELLER_KEY $SELLER_KEY "artist,$(echo $BUYER_5_KEY | tr '[:upper:]' '[:lower:]'),100|broker,$(echo $BUYER_4_KEY | tr '[:upper:]' '[:lower:]'),200"
+cd ../..
+
+. setup/actions/mint_nft.sh
 
 sleep 90
 
@@ -53,10 +94,22 @@ STATE=$(casper-client get-state-root-hash\
   | jq .result.state_root_hash\
   | tr -d '"')
 
-TOKEN_ID=$(casper-client query-state\
+OWNED_TOKENS_DICT=$(casper-client query-state\
   --node-address $NODE_1_ADDRESS\
   --state-root-hash $STATE\
   --key $TOKEN_CONTRACT_HASH\
-  | grep -Pom1 "(?<=metas_)[0-9]{1,}")
+  | jq '.result.stored_value.Contract.named_keys[] | select(.name == "owned_tokens_by_index") | .key'\
+  | tr -d '"')
 
-echo "Obtained token $TOKEN_ID"
+TOKEN_INDEX=$(rust-script setup/misc/encode_owner_token.rs $SELLER_KEY 0 | tail -1)
+
+TOKEN_ID=$(casper-client get-dictionary-item\
+  --node-address $NODE_1_ADDRESS\
+  --state-root-hash $STATE\
+  --seed-uref $OWNED_TOKENS_DICT\
+  --dictionary-item-key $TOKEN_INDEX\
+  | jq .result.stored_value.CLValue.parsed\
+  | tr -d '"')
+
+echo "Obtained token with id (expected 'test_token'):
+ $TOKEN_ID"

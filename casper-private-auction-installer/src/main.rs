@@ -2,41 +2,64 @@
 #![no_main]
 
 extern crate alloc;
-use casper_types::{EntryPoints, runtime_args, RuntimeArgs, EntryPoint, Parameter, CLType, EntryPointAccess, EntryPointType, Key};
-use casper_contract::{contract_api::{system, runtime, storage}};
-use alloc::{vec, string::String};
-use casper_private_auction_core::{AUCTION_PURSE, BID, BID_PURSE, BID_FUNC, CANCEL_FUNC, FINALIZE_FUNC, AUCTION_ACCESS_TOKEN, auction_bid, auction_cancel_bid, auction_finalize, create_auction_named_keys, auction_receive_token, AUCTION_CONTRACT_HASH};
+use alloc::{boxed::Box, format, string::String, vec};
+use casper_contract::{
+    contract_api::{
+        runtime::{self, get_caller},
+        storage, system,
+    },
+    unwrap_or_revert::UnwrapOrRevert,
+};
+use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
+use casper_types::{
+    runtime_args, ApiError, CLType, CLValue, ContractPackageHash, EntryPoint, EntryPointAccess,
+    EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
+};
 
 #[no_mangle]
 pub extern "C" fn bid() {
-    auction_bid();
+    Auction::auction_bid();
 }
 
 #[no_mangle]
 pub extern "C" fn cancel_bid() {
-    auction_cancel_bid();
+    Auction::auction_cancel_bid();
 }
 
 #[no_mangle]
 pub extern "C" fn finalize() {
-    auction_finalize(true);
+    Auction::auction_finalize(true);
 }
 
 #[no_mangle]
-pub extern "C" fn add_auction_purse() {
-    let purse = system::create_purse();
-    runtime::put_key(AUCTION_PURSE, purse.into());
+pub extern "C" fn cancel_auction() {
+    Auction::cancel_auction();
 }
 
 #[no_mangle]
-pub extern "C" fn call() {
+pub extern "C" fn get_bid() {
+    let bids = Bids::at();
+    let bid = bids.get(&get_caller());
+    runtime::ret(CLValue::from_t(bid).unwrap_or_revert());
+}
+
+#[no_mangle]
+pub extern "C" fn init() {
+    if runtime::get_key(data::AUCTION_PURSE).is_none() {
+        let purse = system::create_purse();
+        runtime::put_key(data::AUCTION_PURSE, purse.into());
+        Bids::init();
+    }
+}
+
+pub fn get_entry_points() -> EntryPoints {
     let mut entry_points = EntryPoints::new();
 
     entry_points.add_entry_point(EntryPoint::new(
-        String::from(BID_FUNC),
+        data::BID,
         vec![
-            Parameter::new(BID, CLType::U512),
-            Parameter::new(BID_PURSE, CLType::URef)
+            Parameter::new(data::BID, CLType::U512),
+            Parameter::new(data::BID_PURSE, CLType::URef),
         ],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -44,7 +67,7 @@ pub extern "C" fn call() {
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
-        String::from(CANCEL_FUNC),
+        data::CANCEL_FUNC,
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
@@ -52,39 +75,96 @@ pub extern "C" fn call() {
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
-        String::from(FINALIZE_FUNC),
+        data::FINALIZE_FUNC,
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));
 
-    // TODO: This needs to be one-time use only
     entry_points.add_entry_point(EntryPoint::new(
-        String::from("add_auction_purse"),
+        data::CANCEL_AUCTION_FUNC,
         vec![],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
     ));
 
-    let auction_named_keys = create_auction_named_keys();
+    entry_points.add_entry_point(EntryPoint::new(
+        "get_bid",
+        vec![],
+        CLType::Option(Box::new(CLType::U512)),
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
 
-    // TODO: Store the contract hash, not just the package hash
+    entry_points.add_entry_point(EntryPoint::new(
+        "init",
+        vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+
+    entry_points
+}
+
+#[no_mangle]
+pub extern "C" fn call() {
+    let entry_points = get_entry_points();
+    let auction_named_keys = data::create_auction_named_keys();
+    let auction_desig: String = runtime::get_named_arg("name");
     let (auction_hash, _) = storage::new_locked_contract(
         entry_points,
         Some(auction_named_keys),
-        Some(String::from(AUCTION_CONTRACT_HASH)),
-        Some(String::from(AUCTION_ACCESS_TOKEN)),
+        Some(format!("{}_{}", auction_desig, data::AUCTION_CONTRACT_HASH)),
+        Some(format!("{}_{}", auction_desig, data::AUCTION_ACCESS_TOKEN)),
+    );
+    let auction_key = Key::Hash(auction_hash.value());
+    runtime::put_key(
+        &format!("{}_auction_contract_hash", auction_desig),
+        auction_key,
+    );
+    runtime::put_key(
+        &format!("{}_auction_contract_hash_wrapped", auction_desig),
+        storage::new_uref(auction_hash).into(),
     );
 
     // Create purse in the contract's context
-    runtime::call_contract::<()>(
-        auction_hash,
-        "add_auction_purse",
-        runtime_args! {}
-    );
+    runtime::call_contract::<()>(auction_hash, "init", runtime_args! {});
 
-    let auction_hash_as_key = Key::Hash(auction_hash.value());
-    auction_receive_token(auction_hash_as_key);
+    // Hash of the NFT contract put up for auction
+    let token_contract_hash = ContractPackageHash::new(
+        runtime::get_named_arg::<Key>(data::NFT_HASH)
+            .into_hash()
+            .unwrap_or_revert_with(ApiError::User(200)),
+    );
+    // Transfer the NFT ownership to the auction
+    let token_ids = vec![runtime::get_named_arg::<String>(data::TOKEN_ID)];
+
+    let auction_contract_package_hash = runtime::get_key(&format!(
+        "{}_{}",
+        auction_desig,
+        data::AUCTION_CONTRACT_HASH
+    ))
+    .unwrap_or_revert_with(ApiError::User(201));
+    runtime::put_key(
+        &format!("{}_auction_contract_package_hash_wrapped", auction_desig),
+        storage::new_uref(ContractPackageHash::new(
+            auction_contract_package_hash
+                .into_hash()
+                .unwrap_or_revert_with(ApiError::User(202)),
+        ))
+        .into(),
+    );
+    runtime::call_versioned_contract::<()>(
+        token_contract_hash,
+        None,
+        "transfer",
+        runtime_args! {
+            "sender" => Key::Account(runtime::get_caller()),
+            "recipient" => auction_contract_package_hash,
+            "token_ids" => token_ids,
+        },
+    );
 }

@@ -1,0 +1,29 @@
+[package]
+name = "bid-purse"
+version = "0.2.0"
+edition = "2018"
+
+[dependencies]
+casper-contract = "1.4.3"
+casper-types = "1.4.6"
+
+[[bin]]
+name = "bid-purse"
+path = "src/main.rs"
+bench = false
+doctest = false
+test = false
+
+[[bin]]
+name = "extend-bid-purse"
+path = "src/main_extend.rs"
+bench = false
+doctest = false
+test = false
+
+[[bin]]
+name = "delta-bid-purse"
+path = "src/main_delta.rs"
+bench = false
+doctest = false
+test = false
