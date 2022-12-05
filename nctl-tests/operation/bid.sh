@@ -17,9 +17,7 @@ BID_DEPLOY=$(casper-client put-deploy\
   | jq .result.deploy_hash\
   | tr -d '"')
 
-sleep 90
-
-STATE=$(casper-client get-state-root-hash\
-  --node-address $NODE_1_ADDRESS\
-  | jq .result.state_root_hash\
-  | tr -d '"')
+# STATE=$(casper-client get-state-root-hash\
+#   --node-address $NODE_1_ADDRESS\
+#   | jq .result.state_root_hash\
+#   | tr -d '"')

@@ -7,6 +7,8 @@ rust-test-only:
 
 copy-wasm-file-to-test:
 	cp target/wasm32-unknown-unknown/release/*.wasm tests/wasm
+	cp nctl-tests/setup/fixtures/contracts/cask-token.wasm tests/wasm/nft-contract.wasm
+	cp nctl-tests/setup/fixtures/contracts/civic-token.wasm tests/wasm/kyc-contract.wasm
 
 test: build-contract copy-wasm-file-to-test rust-test-only
 
