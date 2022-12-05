@@ -6,10 +6,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-casper-contract = { version = "1.4.3", default-features = false, features = ["test-support"] }
-casper-engine-test-support = { version = "2.0.3", features = ["test-support"] }
-casper-execution-engine = "1.4.2"
-casper-types = "1.4.6"
+casper-contract = { version = "1.4.4", default-features = false, features = [
+  "test-support",
+] }
+casper-engine-test-support = "2.2.0"
+casper-execution-engine = "2.0.1"
+casper-types = "1.5.0"
 maplit = "*"
 hex = "*"
 rand = "*"
@@ -19,4 +21,9 @@ name = "tests"
 path = "src/lib.rs"
 
 [features]
-default = ["casper-contract/std", "casper-types/std", "casper-engine-test-support/test-support", "casper-contract/test-support"]
+default = [
+  "casper-contract/std",
+  "casper-types/std",
+  "casper-engine-test-support/test-support",
+  "casper-contract/test-support",
+]
