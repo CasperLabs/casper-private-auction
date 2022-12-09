@@ -112,11 +112,11 @@ pub fn get_entry_points() -> EntryPoints {
 #[no_mangle]
 pub extern "C" fn call() {
     let entry_points = get_entry_points();
-    // let auction_named_keys = data::create_auction_named_keys();
+    let auction_named_keys = data::create_auction_named_keys();
     let auction_desig: String = runtime::get_named_arg("name");
     let (auction_hash, _) = storage::new_locked_contract(
         entry_points,
-        None,
+        Some(auction_named_keys),
         Some(format!("{}_{}", auction_desig, data::AUCTION_CONTRACT_HASH)),
         Some(format!("{}_{}", auction_desig, data::AUCTION_ACCESS_TOKEN)),
     );
@@ -141,6 +141,7 @@ pub extern "C" fn call() {
     );
     // Transfer the NFT ownership to the auction
     let token_ids = vec![runtime::get_named_arg::<String>(data::TOKEN_ID)];
+
     let auction_contract_package_hash = runtime::get_key(&format!(
         "{}_{}",
         auction_desig,

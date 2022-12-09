@@ -1,7 +1,5 @@
-use crate::mods::constants::AUCTION_NAME;
-
 use super::constants::{
-    BID, BID_PURSE, CONTRACT_AUCTION, CONTRACT_ECP47_TOKEN, CONTRACT_KYC,
+    AUCTION_NAME, BID, BID_PURSE, CONTRACT_AUCTION, CONTRACT_ECP47_TOKEN, CONTRACT_KYC,
     ENTRY_POINT_GRANT_GATEKEEPER, ENTRY_POINT_MINT, KEY_AUCTION_CONTRACT_HASH,
     KEY_AUCTION_PACKAGE_HASH, KEY_ECP47_CONTRACT_HASH, KEY_ECP47_CONTRACT_NAME,
     KEY_ECP47_PACKAGE_HASH, KEY_KYC_CONTRACT_HASH, KEY_KYC_CONTRACT_NAME, KEY_KYC__PACKAGE_HASH,
@@ -135,7 +133,7 @@ impl AuctionContract {
                 )
             }
             BID_ENGLISH_BUYER_ALI | BID_ENGLISH_BUYER_BOB => {
-                let request = if let TypeDeploy::Bid(type_account, amount) = type_deploy {
+                let request = if let TypeDeploy::Bid(type_account, _) = type_deploy {
                     dbg!(*self.contract_hashes.get(&AUCTION).unwrap());
                     dbg!(*self.account_hashes.get(&type_account).unwrap());
                     Some(ExecuteRequestBuilder::contract_call_by_hash(
@@ -169,7 +167,7 @@ impl AuctionContract {
         self.deploy_contract(NFT);
         self.deploy_contract(MINT);
         self.deploy_contract(GRANT_BUYER_ALI);
-        self.deploy_contract(GRANT_BUYER_BOB);
+        //self.deploy_contract(GRANT_BUYER_BOB);
         self.deploy_contract(AUCTION);
         dbg!(&self);
         self.deploy_contract(BID_ENGLISH_BUYER_ALI);
@@ -218,13 +216,16 @@ impl AuctionContract {
         let runtime_args = if TypeDeploy::Auction == type_deploy {
             let english = true;
             let now = AuctionArgsBuilder::get_now_u64();
+
             let mut auction_args = AuctionArgsBuilder::default();
             if !english {
                 auction_args.set_dutch();
             }
             auction_args.set_name(AUCTION_NAME);
-            auction_args.set_cancellation_time(now + 30000);
-            auction_args.set_end_time(now + 600000);
+            auction_args.set_start_time(0);
+            dbg!(now);
+            // auction_args.set_cancellation_time(3000);
+            // auction_args.set_end_time(now);
             auction_args.set_beneficiary(&admin_account_hash);
             auction_args.set_token_contract_hash(self.package_hashes.get(&NFT).unwrap());
             auction_args.set_kyc_package_hash(self.package_hashes.get(&KYC).unwrap());
@@ -243,7 +244,7 @@ impl AuctionContract {
                 let recipient_account_hash = *self.account_hashes.get(&type_account).unwrap();
                 Some(runtime_args! {
                     RUNTIME_ARG_RECIPIENT => Key::Account(recipient_account_hash),
-                    TOKEN_ID => Some(format!("{TOKEN_KYC_NAME}_{type_deploy}")),
+                    TOKEN_ID => Some(format!("{TOKEN_ECP47_NAME}")),
                     TOKEN_META => ""
                 })
             }
