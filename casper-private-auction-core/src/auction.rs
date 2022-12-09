@@ -270,7 +270,7 @@ impl crate::AuctionLogic for Auction {
     fn auction_finalize(time_check: bool) {
         // Get finalization and check if we're done
         if AuctionData::is_finalized() {
-            runtime::revert(AuctionError::AlreadyFinal)
+            runtime::revert(AuctionError::LateCancellation2)
         };
 
         // We're not finalized, so let's get all the other arguments, as well as time to make sure we're not too early

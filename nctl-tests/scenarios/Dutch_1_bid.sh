@@ -17,7 +17,7 @@ STARTING_PRICE="'1000'"
 . ../setup/actions/mint_kyc.sh $BUYER_2_KEY
 
 # Bids
-BID_1=1200
+BID_1=800
 SECRET_KEY_1=$USER_2_SECRET_KEY
 PURSE_1=$BUYER_2_PURSE
 

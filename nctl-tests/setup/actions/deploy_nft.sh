@@ -13,3 +13,5 @@ NFT_INSTALL_DEPLOY=$(casper-client put-deploy\
   --session-arg "contract_name:string='TestCaskNFT'"\
   | jq .result.deploy_hash\
   | tr -d '"')
+
+  echo NFT_INSTALL_DEPLOY

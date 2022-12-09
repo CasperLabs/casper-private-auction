@@ -63,6 +63,10 @@ impl AuctionArgsBuilder {
         }
     }
 
+    pub fn set_name(&mut self, name: &str) {
+        self.name = name.to_string();
+    }
+
     pub fn set_english(&mut self) {
         self.is_english = true;
     }
