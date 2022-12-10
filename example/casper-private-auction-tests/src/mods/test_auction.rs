@@ -12,15 +12,16 @@ use super::{
     structs::AuctionContract,
     utils::{fund_account, get_contracts_name_constants, get_session_file},
 };
-use casper_engine_test_support::{ExecuteRequestBuilder, WasmTestBuilder, ARG_AMOUNT};
+use casper_engine_test_support::{
+    ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
+    DEFAULT_RUN_GENESIS_REQUEST,
+};
 use casper_execution_engine::{
     core::engine_state::ExecuteRequest, storage::global_state::in_memory::InMemoryGlobalState,
 };
 use casper_types::{
-    account::AccountHash,
-    runtime_args,
-    system::mint::{self, METHOD_MINT},
-    ContractHash, ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
+    account::AccountHash, runtime_args, system::mint::METHOD_MINT, ContractHash,
+    ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
 };
 
 use std::collections::{BTreeMap, HashMap};
@@ -86,8 +87,10 @@ impl AuctionContract {
     }
 
     pub fn deploy_contracts(&mut self, type_auction: TypeAuction, type_ecp: TypeECP) {
+        // Set auction type and NFT type
         self.type_auction = type_auction;
         self.type_ecp = type_ecp;
+
         self.deploy(KYC);
         self.deploy(GRANT_GATE_KEEPER);
         match type_ecp {
@@ -275,5 +278,10 @@ impl AuctionContract {
         };
         test_auction.account_hashes = test_auction.get_account_hashes();
         test_auction
+    }
+    pub fn default() -> Self {
+        let mut builder = InMemoryWasmTestBuilder::default();
+        builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+        Self::new(builder)
     }
 }
