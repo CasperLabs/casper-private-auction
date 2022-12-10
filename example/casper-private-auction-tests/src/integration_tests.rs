@@ -2,22 +2,43 @@ mod mods;
 
 #[cfg(test)]
 mod tests {
-    use crate::mods::test_auction::AuctionContract;
+    use crate::mods::{
+        enums::{TypeAccount, TypeAuction, TypeDeploy, TypeECP},
+        structs::AuctionContract,
+    };
     use casper_engine_test_support::{InMemoryWasmTestBuilder, DEFAULT_RUN_GENESIS_REQUEST};
 
     #[test]
-    fn seller_erc47_token_setup() {
+    #[should_panic = "User(19)"]
+    fn ecp47_english_bids() {
         let mut builder = InMemoryWasmTestBuilder::default();
         builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
         let mut test_auction = AuctionContract::new(builder);
-        test_auction.deploy_contracts();
-        // assert_eq!(fixture.token_name(), AuctionContract::TOKEN_NAME);
-        // assert_eq!(fixture.token_symbol(), AuctionContract::TOKEN_SYMBOL);
-        // assert_eq!(fixture.token_decimals(), AuctionContract::TOKEN_DECIMALS);
-        // assert_eq!(
-        //     fixture.balance_of(Key::from(fixture.ali)),
-        //     Some(AuctionContract::token_total_supply())
-        // );
+        test_auction.deploy_contracts(TypeAuction::English, TypeECP::ECP47);
+        const BID_ENGLISH_BUYER_ALI: TypeDeploy = TypeDeploy::Bid(TypeAccount::Ali, 400_u16);
+        const BID_ENGLISH_BUYER_BOB: TypeDeploy = TypeDeploy::Bid(TypeAccount::Bob, 600_u16);
+        test_auction.deploy(BID_ENGLISH_BUYER_BOB);
+        test_auction.deploy(BID_ENGLISH_BUYER_ALI);
+    }
+
+    #[test]
+    fn ecp47_dutch_bid() {
+        let mut builder = InMemoryWasmTestBuilder::default();
+        builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+        let mut test_auction = AuctionContract::new(builder);
+        test_auction.deploy_contracts(TypeAuction::Dutch, TypeECP::ECP47);
+        const BID_ENGLISH_BUYER_BOB: TypeDeploy = TypeDeploy::Bid(TypeAccount::Bob, 800_u16);
+        test_auction.deploy(BID_ENGLISH_BUYER_BOB);
+    }
+
+    #[test]
+    fn ecp78_english_bids() {
+        let mut builder = InMemoryWasmTestBuilder::default();
+        builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
+        let mut test_auction = AuctionContract::new(builder);
+        test_auction.deploy_contracts(TypeAuction::English, TypeECP::ECP78);
+        const BID_ENGLISH_BUYER_BOB: TypeDeploy = TypeDeploy::Bid(TypeAccount::Bob, 600_u16);
+        test_auction.deploy(BID_ENGLISH_BUYER_BOB);
     }
 }
 
