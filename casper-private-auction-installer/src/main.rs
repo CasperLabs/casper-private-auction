@@ -14,8 +14,8 @@ use casper_private_auction_core::{
     auction::Auction,
     bids::Bids,
     constants::{
-        AUCTION_ACCESS_TOKEN, AUCTION_CONTRACT_HASH, AUCTION_CONTRACT_PACKAGE_HASH, AUCTION_PURSE,
-        BID, BID_PURSE, CANCEL_AUCTION_FUNC, CANCEL_FUNC, FINALIZE_FUNC, GET_BID, HAS_ENHANCED_NFT,
+        AUCTION_ACCESS_TOKEN, AUCTION_CONTRACT_HASH, AUCTION_PACKAGE_HASH, AUCTION_PURSE, BID,
+        BID_PURSE, CANCEL_AUCTION_FUNC, CANCEL_FUNC, FINALIZE_FUNC, GET_BID, HAS_ENHANCED_NFT,
         INIT, NAME, NFT_HASH, RECIPIENT, SENDER, SOURCE_KEY, TARGET_KEY, TOKEN_HASH, TOKEN_ID,
         TOKEN_IDS, TRANSFER, WRAPPED,
     },
@@ -128,7 +128,7 @@ pub extern "C" fn call() {
     let (auction_hash, _) = storage::new_locked_contract(
         entry_points,
         Some(auction_named_keys),
-        Some(format!("{contract_name}_{AUCTION_CONTRACT_PACKAGE_HASH}")),
+        Some(format!("{contract_name}_{AUCTION_PACKAGE_HASH}")),
         Some(format!("{contract_name}_{AUCTION_ACCESS_TOKEN}")),
     );
     let auction_key = Key::Hash(auction_hash.value());
@@ -156,10 +156,10 @@ pub extern "C" fn call() {
     let token_ids = vec![token_id];
 
     let auction_contract_package_hash =
-        runtime::get_key(&format!("{contract_name}_{AUCTION_CONTRACT_PACKAGE_HASH}"))
+        runtime::get_key(&format!("{contract_name}_{AUCTION_PACKAGE_HASH}"))
             .unwrap_or_revert_with(ApiError::User(201));
     runtime::put_key(
-        &format!("{contract_name}_{AUCTION_CONTRACT_PACKAGE_HASH}_{WRAPPED}"),
+        &format!("{contract_name}_{AUCTION_PACKAGE_HASH}_{WRAPPED}"),
         storage::new_uref(ContractPackageHash::new(
             auction_contract_package_hash
                 .into_hash()

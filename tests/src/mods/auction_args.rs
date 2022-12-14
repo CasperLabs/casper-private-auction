@@ -4,10 +4,11 @@ use casper_types::{
 
 use super::{
     constants::{
-        ARG_NAME, AUCTION_NAME, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_COUNT_CAP,
+        ARG_NAME, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_COUNT_CAP,
         CANCELLATION_TIME, DUTCH, END_TIME, ENGLISH, FORMAT, HAS_ENHANCED_NFT,
-        KEY_KYC_PACKAGE_HASH, MARKETPLACE_ACCOUNT, MARKETPLACE_COMMISSION, MINIMUM_BID_STEP,
-        RESERVE_PRICE, STARTING_PRICE, START_TIME, TOKEN_CONTRACT_HASH, TOKEN_ID,
+        KEY_AUCTION_CONTRACT_NAME, KEY_KYC_PACKAGE_HASH, MARKETPLACE_ACCOUNT,
+        MARKETPLACE_COMMISSION, MINIMUM_BID_STEP, RESERVE_PRICE, STARTING_PRICE, START_TIME,
+        TOKEN_CONTRACT_HASH, TOKEN_ID,
     },
     utils::get_privayte_keys,
 };
@@ -157,7 +158,7 @@ impl Default for AuctionArgsBuilder {
             start_time: now + 500,
             cancellation_time: 3000,
             end_time: 3500,
-            name: AUCTION_NAME.to_string(),
+            name: KEY_AUCTION_CONTRACT_NAME.to_string(),
             bidder_count_cap: None,
             auction_timer_extension: None,
             minimum_bid_step: None,

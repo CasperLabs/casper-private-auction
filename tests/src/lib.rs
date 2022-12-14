@@ -6,11 +6,11 @@ mod tests {
         auction::AuctionContract,
         auction_args::AuctionArgsBuilder,
         constants::{
-            ARG_NAME, AUCTION_CONTRACT, AUCTION_NAME, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT,
-            BID, BIDDER_COUNT_CAP, CANCELLATION_TIME, END_TIME, FORMAT, HAS_ENHANCED_NFT,
-            KEY_KYC_PACKAGE_HASH, MARKETPLACE_ACCOUNT, MARKETPLACE_COMMISSION, MINIMUM_BID_STEP,
-            RESERVE_PRICE, SESSION_BID_PURSE, STARTING_PRICE, START_TIME, TOKEN_CONTRACT_HASH,
-            TOKEN_ID,
+            ARG_AUCTION_CONTRACT, ARG_NAME, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BID,
+            BIDDER_COUNT_CAP, CANCELLATION_TIME, END_TIME, FORMAT, HAS_ENHANCED_NFT,
+            KEY_AUCTION_CONTRACT_NAME, KEY_KYC_PACKAGE_HASH, MARKETPLACE_ACCOUNT,
+            MARKETPLACE_COMMISSION, MINIMUM_BID_STEP, RESERVE_PRICE, SESSION_BID_PURSE,
+            STARTING_PRICE, START_TIME, TOKEN_CONTRACT_HASH, TOKEN_ID,
         },
         utils::{deploy, fund_account, DeploySource},
     };
@@ -199,7 +199,7 @@ mod tests {
             START_TIME => 1,
             CANCELLATION_TIME => 2,
             END_TIME => 3,
-            ARG_NAME => AUCTION_NAME,
+            ARG_NAME => KEY_AUCTION_CONTRACT_NAME,
             BIDDER_COUNT_CAP => Some(10_u64),
             AUCTION_TIMER_EXTENSION => None::<u64>,
             MINIMUM_BID_STEP => None::<U512>,
@@ -301,7 +301,7 @@ mod tests {
             &DeploySource::Code(session_code),
             runtime_args! {
                 BID => U512::from(40000),
-                AUCTION_CONTRACT => auction_hash
+                ARG_AUCTION_CONTRACT => auction_hash
             },
             true,
             Some(now + 1500),

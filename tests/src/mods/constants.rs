@@ -19,9 +19,10 @@ pub const KEY_KYC_CONTRACT_NAME: &str = "kyc";
 pub const KEY_KYC_CONTRACT_HASH: &str = "kyc_contract_hash";
 pub const KEY_KYC_PACKAGE_HASH: &str = "kyc_package_hash";
 
-// Config
-pub const AUCTION_CONTRACT: &str = "auction_contract";
-pub const AUCTION_NAME: &str = "AUCTION";
+pub const KEY_AUCTION_CONTRACT_NAME: &str = "auction";
+pub const KEY_AUCTION_CONTRACT_HASH: &str = "auction_contract_hash";
+pub const KEY_AUCTION_PACKAGE_HASH: &str = "auction_package_hash";
+
 pub const TOKEN_CEP_47_NAME: &str = "CEP_47_TOKEN";
 pub const TOKEN_CEP_47_SYMBOL: &str = "CEP_47";
 pub const TOKEN_CEP_78_NAME: &str = "CEP_78_TOKEN";
@@ -30,6 +31,7 @@ pub const TOKEN_KYC_NAME: &str = "KYC_TOKEN";
 pub const TOKEN_KYC_SYMBOL: &str = "KYC";
 
 // Runtime Args name
+pub const ARG_AUCTION_CONTRACT: &str = "auction_contract";
 pub const ARG_NAME: &str = "name";
 pub const ARG_SYMBOL: &str = "symbol";
 pub const ARG_META: &str = "meta";
@@ -59,13 +61,14 @@ pub const ENGLISH: &str = "ENGLISH";
 pub const DUTCH: &str = "DUTCH";
 pub const WRAPPED: &str = "wrapped";
 pub const STATUS: &str = "status";
+pub const ORIGIN: &str = "origin";
 pub const ACTIVE: &str = "active";
 pub const TOKEN_IDS: &str = "token_ids";
 pub const TOKEN_METAS: &str = "token_metas";
 pub const TOKEN_GAUGES: &str = "token_gauges";
 pub const TOKEN_WAREHOUSES: &str = "token_warehouses";
 pub const TOKEN_COMISSIONS: &str = "token_commissions";
-pub const PURSE_NAME: &str = "purse_name";
+pub const ARG_PURSE_NAME: &str = "purse_name";
 pub const PURSE_NAME_VALUE: &str = "my_auction_purse";
 pub const BENEFICIARY_ACCOUNT: &str = "beneficiary_account";
 pub const TOKEN_CONTRACT_HASH: &str = "token_contract_hash";

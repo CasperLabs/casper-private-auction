@@ -1,18 +1,19 @@
 use super::{
     auction_args::AuctionArgsBuilder,
     constants::{
-        ACTIVE, ARG_ADMIN, ARG_COLLECTION_NAME, ARG_COLLECTION_SYMBOL, ARG_CONTRACT_NAME,
-        ARG_IDENTIFIER_MODE, ARG_JSON_SCHEMA, ARG_META, ARG_METADATA_MUTABILITY, ARG_NAME,
-        ARG_NFT_KIND, ARG_NFT_METADATA_KIND, ARG_OWNERSHIP_MODE, ARG_RECIPIENT, ARG_SYMBOL,
-        ARG_TOKEN_META_DATA, ARG_TOKEN_OWNER, ARG_TOTAL_TOKEN_SUPPLY, AUCTION_CONTRACT,
-        AUCTION_NAME, CONTRACT_AUCTION, CONTRACT_CEP_47_TOKEN, CONTRACT_CEP_78_TOKEN, CONTRACT_KYC,
+        ACTIVE, ARG_ADMIN, ARG_AUCTION_CONTRACT, ARG_COLLECTION_NAME, ARG_COLLECTION_SYMBOL,
+        ARG_CONTRACT_NAME, ARG_IDENTIFIER_MODE, ARG_JSON_SCHEMA, ARG_META, ARG_METADATA_MUTABILITY,
+        ARG_NAME, ARG_NFT_KIND, ARG_NFT_METADATA_KIND, ARG_OWNERSHIP_MODE, ARG_PURSE_NAME,
+        ARG_RECIPIENT, ARG_SYMBOL, ARG_TOKEN_META_DATA, ARG_TOKEN_OWNER, ARG_TOTAL_TOKEN_SUPPLY,
+        CONTRACT_AUCTION, CONTRACT_CEP_47_TOKEN, CONTRACT_CEP_78_TOKEN, CONTRACT_KYC,
+        KEY_AUCTION_CONTRACT_HASH, KEY_AUCTION_CONTRACT_NAME, KEY_AUCTION_PACKAGE_HASH,
         KEY_CEP_47_CONTRACT_HASH, KEY_CEP_47_CONTRACT_NAME, KEY_CEP_47_PACKAGE_HASH,
         KEY_CEP_78_CONTRACT_HASH, KEY_CEP_78_PACKAGE_HASH, KEY_KYC_CONTRACT_HASH,
-        KEY_KYC_CONTRACT_NAME, KEY_KYC_PACKAGE_HASH, PURSE_NAME, PURSE_NAME_VALUE,
-        SESSION_BID_PURSE, SESSION_DELTA_BID_PURSE, SESSION_EXTENDED_BID_PURSE, STATUS,
-        TOKEN_CEP_47_NAME, TOKEN_CEP_47_SYMBOL, TOKEN_CEP_78_NAME, TOKEN_CEP_78_SYMBOL,
-        TOKEN_COMISSIONS, TOKEN_GAUGES, TOKEN_ID, TOKEN_IDS, TOKEN_KYC_NAME, TOKEN_KYC_SYMBOL,
-        TOKEN_META, TOKEN_METAS, TOKEN_WAREHOUSES, WRAPPED,
+        KEY_KYC_CONTRACT_NAME, KEY_KYC_PACKAGE_HASH, ORIGIN, PURSE_NAME_VALUE, SESSION_BID_PURSE,
+        SESSION_DELTA_BID_PURSE, SESSION_EXTENDED_BID_PURSE, STATUS, TOKEN_CEP_47_NAME,
+        TOKEN_CEP_47_SYMBOL, TOKEN_CEP_78_NAME, TOKEN_CEP_78_SYMBOL, TOKEN_COMISSIONS,
+        TOKEN_GAUGES, TOKEN_ID, TOKEN_IDS, TOKEN_KYC_NAME, TOKEN_KYC_SYMBOL, TOKEN_META,
+        TOKEN_METAS, TOKEN_WAREHOUSES, WRAPPED,
     },
     utils::{deploy, fund_account, get_privayte_keys, query, query_dictionary_item, DeploySource},
 };
@@ -91,7 +92,7 @@ impl AuctionContract {
         let (nft_hash, nft_package) = Self::deploy_nft(&mut builder, &admin);
 
         let token_meta = btreemap! {
-            "origin".to_string() => "fire".to_string()
+            ORIGIN.to_string() => TOKEN_META.to_string()
         };
         let commissions = BTreeMap::new();
 
@@ -172,9 +173,8 @@ impl AuctionContract {
         builder: &mut InMemoryWasmTestBuilder,
         admin: &AccountHash,
     ) -> (ContractHash, ContractPackageHash) {
-        // Specific value
         let mut meta = BTreeMap::new();
-        meta.insert("origin".to_string(), "kyc".to_string());
+        meta.insert(ORIGIN.to_string(), KEY_KYC_CONTRACT_NAME.to_string());
 
         let kyc_args = runtime_args! {
             ARG_NAME => TOKEN_KYC_NAME,
@@ -305,12 +305,17 @@ impl AuctionContract {
         let contract_hash: ContractHash = query(
             builder,
             Key::Account(*admin),
-            &[[AUCTION_NAME, "auction_contract_hash_wrapped"].join("_")],
+            &[[
+                KEY_AUCTION_CONTRACT_NAME,
+                KEY_AUCTION_CONTRACT_HASH,
+                WRAPPED,
+            ]
+            .join("_")],
         );
         let contract_package: ContractPackageHash = query(
             builder,
             Key::Account(*admin),
-            &[[AUCTION_NAME, "auction_contract_package_hash_wrapped"].join("_")],
+            &[[KEY_AUCTION_CONTRACT_NAME, KEY_AUCTION_PACKAGE_HASH, WRAPPED].join("_")],
         );
         (contract_hash, contract_package)
     }
@@ -390,7 +395,6 @@ impl AuctionContract {
         admin: &AccountHash,
         recipient: &AccountHash,
     ) {
-        // Specific
         let mut token_meta = BTreeMap::new();
         token_meta.insert(STATUS.to_string(), ACTIVE.to_string());
 
@@ -420,8 +424,8 @@ impl AuctionContract {
             &DeploySource::Code(session_code),
             runtime_args! {
                 ARG_AMOUNT => amount,
-                PURSE_NAME => PURSE_NAME_VALUE,
-                AUCTION_CONTRACT => self.auction_hash
+                ARG_PURSE_NAME => PURSE_NAME_VALUE,
+                ARG_AUCTION_CONTRACT => self.auction_hash
             },
             true,
             Some(block_time),
@@ -436,8 +440,8 @@ impl AuctionContract {
             &DeploySource::Code(session_code),
             runtime_args! {
                 ARG_AMOUNT => amount,
-                PURSE_NAME => PURSE_NAME_VALUE,
-                AUCTION_CONTRACT => self.auction_hash
+                ARG_PURSE_NAME => PURSE_NAME_VALUE,
+                ARG_AUCTION_CONTRACT => self.auction_hash
             },
             true,
             Some(block_time),
@@ -452,8 +456,8 @@ impl AuctionContract {
             &DeploySource::Code(session_code),
             runtime_args! {
                 ARG_AMOUNT => amount,
-                PURSE_NAME => PURSE_NAME_VALUE,
-                AUCTION_CONTRACT => self.auction_hash
+                ARG_PURSE_NAME => PURSE_NAME_VALUE,
+                ARG_AUCTION_CONTRACT => self.auction_hash
             },
             true,
             Some(block_time),
@@ -553,7 +557,7 @@ impl AuctionContract {
             &self.builder,
             Key::Account(self.admin),
             &[
-                [AUCTION_NAME, "auction_contract_hash"].join("_"),
+                [KEY_AUCTION_CONTRACT_NAME, KEY_AUCTION_CONTRACT_HASH].join("_"),
                 name.to_string(),
             ],
         )
