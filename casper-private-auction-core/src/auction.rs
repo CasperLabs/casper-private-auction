@@ -108,23 +108,36 @@ impl Auction {
                 ),
             }
         };
+
+        let has_enhanced_nft: bool = AuctionData::get_has_enhanced_nft();
         let token_id: String = AuctionData::get_token_id();
-        let token_hash = base16::encode_lower(&runtime::blake2b(&token_id));
-        let token_ids = vec![token_id];
-        runtime::call_versioned_contract::<(String, Key)>(
-            AuctionData::get_nft_hash(),
-            None,
-            "transfer",
-            runtime_args! {
-            //   "sender" => contract_package_hash,
-            //   "recipient" => recipient,
-            //   "token_ids" => token_ids,
+        if !has_enhanced_nft {
+            // CEP-47
+            let token_ids = vec![token_id];
+            runtime::call_versioned_contract::<()>(
+                AuctionData::get_nft_hash(),
+                None,
+                "transfer",
+                runtime_args! {
+                    "sender" => contract_package_hash,
+                    "recipient" => recipient,
+                    "token_ids" => token_ids,
+                },
+            );
+        } else {
             // CEP-78
-            "source_key" => contract_hash,
-            "target_key" => recipient,
-            "token_hash" => token_hash,
-            },
-        );
+            let token_hash = base16::encode_lower(&runtime::blake2b(&token_id));
+            runtime::call_versioned_contract::<(String, Key)>(
+                AuctionData::get_nft_hash(),
+                None,
+                "transfer",
+                runtime_args! {
+                    "source_key" => contract_hash,
+                    "target_key" => recipient,
+                    "token_hash" => token_hash,
+                },
+            );
+        }
     }
 }
 

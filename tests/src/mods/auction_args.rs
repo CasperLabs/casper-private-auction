@@ -3,6 +3,13 @@ use casper_types::{
     SecretKey, U512,
 };
 
+use super::constants::{
+    ARG_NAME, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_COUNT_CAP, CANCELLATION_TIME,
+    END_TIME, FORMAT, HAS_ENHANCED_NFT, KEY_KYC_PACKAGE_HASH, MARKETPLACE_ACCOUNT,
+    MARKETPLACE_COMMISSION, MINIMUM_BID_STEP, RESERVE_PRICE, STARTING_PRICE, START_TIME,
+    TOKEN_CONTRACT_HASH, TOKEN_ID,
+};
+
 #[derive(Debug)]
 pub struct AuctionArgsBuilder {
     // into Key
@@ -30,34 +37,6 @@ pub struct AuctionArgsBuilder {
 }
 
 impl AuctionArgsBuilder {
-    // pub fn new_with_necessary(
-    //     beneficiary: &AccountHash,
-    //     token_contract_hash: &ContractPackageHash,
-    //     kyc_package_hash: &ContractPackageHash,
-    //     token_id: &str,
-    //     english: bool,
-    //     start_time: u64,
-    // ) -> Self {
-    //     AuctionArgsBuilder {
-    //         beneficiary_account: *beneficiary,
-    //         token_contract_hash: *token_contract_hash,
-    //         kyc_package_hash: *kyc_package_hash,
-    //         is_english: english,
-    //         starting_price: None,
-    //         reserve_price: U512::from(1000),
-    //         token_id: token_id.to_string(),
-    //         start_time,
-    //         cancellation_time: 3000,
-    //         end_time: 3500,
-    //         name: "test".to_string(),
-    //         bidder_count_cap: None,
-    //         auction_timer_extension: None,
-    //         minimum_bid_step: None,
-    //         marketplace_account: AccountHash::new([11_u8; 32]),
-    //         marketplace_commission: 75,
-    //     }
-    // }
-
     pub fn set_name(&mut self, name: &str) {
         self.name = name.to_string();
     }
@@ -126,28 +105,29 @@ impl AuctionArgsBuilder {
         self.has_enhanced_nft = true;
     }
 
-    pub fn has_enhanced_nft(&mut self) -> bool {
+    pub fn has_enhanced_nft(&self) -> bool {
         self.has_enhanced_nft
     }
 
     pub fn build(&self) -> RuntimeArgs {
         runtime_args! {
-            "beneficiary_account"=>Key::Account(self.beneficiary_account),
-            "token_contract_hash"=>Key::Hash(self.token_contract_hash.value()),
-            "kyc_package_hash"=>Key::Hash(self.kyc_package_hash.value()),
-            "format"=>if self.is_english{"ENGLISH"}else{"DUTCH"},
-            "starting_price"=> self.starting_price,
-            "reserve_price"=>self.reserve_price,
-            "token_id"=>self.token_id.to_owned(),
-            "start_time" => self.start_time,
-            "cancellation_time" => self.start_time+self.cancellation_time,
-            "end_time" => self.start_time+self.end_time,
-            "name" => self.name.clone(),
-            "bidder_count_cap" => self.bidder_count_cap,
-            "auction_timer_extension" => self.auction_timer_extension,
-            "minimum_bid_step" => self.minimum_bid_step,
-            "marketplace_account" => self.marketplace_account,
-            "marketplace_commission" => self.marketplace_commission,
+            BENEFICIARY_ACCOUNT => Key::Account(self.beneficiary_account),
+            TOKEN_CONTRACT_HASH => Key::Hash(self.token_contract_hash.value()),
+            KEY_KYC_PACKAGE_HASH => Key::Hash(self.kyc_package_hash.value()),
+            FORMAT => if self.is_english{"ENGLISH"}else{"DUTCH"},
+            STARTING_PRICE => self.starting_price,
+            RESERVE_PRICE => self.reserve_price,
+            TOKEN_ID => self.token_id.to_owned(),
+            START_TIME => self.start_time,
+            CANCELLATION_TIME => self.start_time+self.cancellation_time,
+            END_TIME => self.start_time+self.end_time,
+            ARG_NAME => self.name.clone(),
+            BIDDER_COUNT_CAP => self.bidder_count_cap,
+            AUCTION_TIMER_EXTENSION => self.auction_timer_extension,
+            MINIMUM_BID_STEP => self.minimum_bid_step,
+            MARKETPLACE_ACCOUNT => self.marketplace_account,
+            MARKETPLACE_COMMISSION => self.marketplace_commission,
+            HAS_ENHANCED_NFT => self.has_enhanced_nft,
         }
     }
 
@@ -171,7 +151,7 @@ impl Default for AuctionArgsBuilder {
             is_english: true,
             starting_price: None,
             reserve_price: U512::from(1000),
-            token_id: "token_id".to_string(),
+            token_id: TOKEN_ID.to_string(),
             start_time: now + 500,
             cancellation_time: 3000,
             end_time: 3500,

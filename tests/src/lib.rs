@@ -9,7 +9,12 @@ mod tests {
     use crate::mods::{
         auction::AuctionContract,
         auction_args::AuctionArgsBuilder,
-        constants::{SESSION_BID_PURSE, TOKEN_META},
+        constants::{
+            ARG_NAME, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_COUNT_CAP,
+            CANCELLATION_TIME, END_TIME, FORMAT, HAS_ENHANCED_NFT, KEY_KYC_PACKAGE_HASH,
+            MARKETPLACE_ACCOUNT, MARKETPLACE_COMMISSION, MINIMUM_BID_STEP, RESERVE_PRICE,
+            SESSION_BID_PURSE, STARTING_PRICE, START_TIME, TOKEN_CONTRACT_HASH, TOKEN_ID,
+        },
         utils::{deploy, fund_account, DeploySource},
     };
     use casper_types::{
@@ -69,7 +74,7 @@ mod tests {
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_starting_price(Some(U512::from(40000)));
         auction_args.set_dutch();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
         assert!(auction_contract.is_finalized());
         assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
@@ -120,7 +125,7 @@ mod tests {
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_starting_price(Some(U512::from(40000)));
         auction_args.set_dutch();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
     }
 
@@ -144,7 +149,7 @@ mod tests {
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_starting_price(Some(U512::from(40000)));
         auction_args.set_dutch();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1001);
     }
@@ -198,22 +203,23 @@ mod tests {
         let token_id = String::from("custom_token_id");
 
         let auction_args = runtime_args! {
-            "beneficiary_account"=>Key::Account(admin),
-            "token_contract_hash"=>Key::Hash(nft_package.value()),
-            "kyc_package_hash" => Key::Hash(kyc_package.value()),
-            "format"=> "WOLOLO",
-            "starting_price"=> None::<U512>,
-            "reserve_price"=>U512::from(300),
-            "token_id"=>token_id,
-            "start_time" => 1,
-            "cancellation_time" => 2,
-            "end_time" => 3,
-            "name" => "test",
-            "bidder_count_cap" => Some(10_u64),
-            "auction_timer_extension" => None::<u64>,
-            "minimum_bid_step"=> None::<U512>,
-            "marketplace_account" => AccountHash::new([11_u8; 32]),
-            "marketplace_commission" => 75
+            BENEFICIARY_ACCOUNT => Key::Account(admin),
+            TOKEN_CONTRACT_HASH => Key::Hash(nft_package.value()),
+            KEY_KYC_PACKAGE_HASH => Key::Hash(kyc_package.value()),
+            FORMAT => "WOLOLO",
+            STARTING_PRICE => None::<U512>,
+            RESERVE_PRICE =>U512::from(300),
+            TOKEN_ID=>token_id,
+            START_TIME => 1,
+            CANCELLATION_TIME => 2,
+            END_TIME => 3,
+            ARG_NAME => "test",
+            BIDDER_COUNT_CAP => Some(10_u64),
+            AUCTION_TIMER_EXTENSION => None::<u64>,
+            MINIMUM_BID_STEP => None::<U512>,
+            MARKETPLACE_ACCOUNT => AccountHash::new([11_u8; 32]),
+            MARKETPLACE_COMMISSION => 75,
+            HAS_ENHANCED_NFT => false
         };
         AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
     }
@@ -249,22 +255,23 @@ mod tests {
         let token_id = String::from("custom_token_id");
 
         let auction_args = runtime_args! {
-            "beneficiary_account"=>Key::Account(admin),
-            "token_contract_hash"=>Key::Hash(nft_package.value()),
-            "kyc_package_hash" => Key::Hash(kyc_package.value()),
-            "format"=> "ENGLISH",
-            "starting_price"=> None::<U512>,
-            "reserve_price"=>U512::from(300),
-            "token_id"=>token_id,
-            "start_time" => 1000_u64,
-            "cancellation_time" => 20_u64,
-            "end_time" => 11_u64,
-            "name" => "test",
-            "bidder_count_cap" => Some(10_u64),
-            "auction_timer_extension" => None::<u64>,
-            "minimum_bid_step"=> None::<U512>,
-            "marketplace_account" => AccountHash::new([11_u8; 32]),
-            "marketplace_commission" => 75
+            BENEFICIARY_ACCOUNT=>Key::Account(admin),
+            TOKEN_CONTRACT_HASH=>Key::Hash(nft_package.value()),
+            KEY_KYC_PACKAGE_HASH => Key::Hash(kyc_package.value()),
+            FORMAT => "ENGLISH",
+            STARTING_PRICE => None::<U512>,
+            RESERVE_PRICE => U512::from(300),
+            TOKEN_ID => token_id,
+            START_TIME => 1000_u64,
+            CANCELLATION_TIME => 20_u64,
+            END_TIME => 11_u64,
+            ARG_NAME => "test",
+            BIDDER_COUNT_CAP => Some(10_u64),
+            AUCTION_TIMER_EXTENSION => None::<u64>,
+            MINIMUM_BID_STEP => None::<U512>,
+            MARKETPLACE_ACCOUNT => AccountHash::new([11_u8; 32]),
+            MARKETPLACE_COMMISSION => 75,
+            HAS_ENHANCED_NFT => false
         };
 
         AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
@@ -278,7 +285,7 @@ mod tests {
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_starting_price(None);
         auction_args.set_dutch();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     }
 
@@ -317,22 +324,23 @@ mod tests {
 
         let now: u64 = AuctionArgsBuilder::get_now_u64();
         let auction_args = runtime_args! {
-            "beneficiary_account"=>Key::Account(admin),
-            "token_contract_hash"=>Key::Hash(nft_package.value()),
-            "kyc_package_hash" => Key::Hash(kyc_package.value()),
-            "format"=> "ENGLISH",
-            "starting_price"=> None::<U512>,
-            "reserve_price"=>U512::from(300),
-            "token_id"=>token_id,
-            "start_time" => now+500,
-            "cancellation_time" => now+3500,
-            "end_time" => now+4000,
-            "name" => "test",
-            "bidder_count_cap" => Some(10_u64),
-            "auction_timer_extension" => None::<u64>,
-            "minimum_bid_step"=> None::<U512>,
-            "marketplace_account" => AccountHash::new([11_u8; 32]),
-            "marketplace_commission" => 75
+            BENEFICIARY_ACCOUNT=>Key::Account(admin),
+            TOKEN_CONTRACT_HASH=>Key::Hash(nft_package.value()),
+            KEY_KYC_PACKAGE_HASH => Key::Hash(kyc_package.value()),
+            FORMAT => "ENGLISH",
+            STARTING_PRICE => None::<U512>,
+            RESERVE_PRICE => U512::from(300),
+            TOKEN_ID => token_id,
+            START_TIME => now+500,
+            CANCELLATION_TIME => now+3500,
+            END_TIME => now+4000,
+            ARG_NAME=> "test",
+            BIDDER_COUNT_CAP => Some(10_u64),
+            AUCTION_TIMER_EXTENSION => None::<u64>,
+            MINIMUM_BID_STEP => None::<U512>,
+            MARKETPLACE_ACCOUNT => AccountHash::new([11_u8; 32]),
+            MARKETPLACE_COMMISSION => 75,
+            HAS_ENHANCED_NFT => false
         };
 
         let (auction_hash, _) = AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
@@ -382,7 +390,7 @@ mod tests {
         let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_bidder_count_cap(Some(1));
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
         auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1002);
@@ -400,7 +408,7 @@ mod tests {
         let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_auction_timer_extension(Some(10000));
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         assert_eq!(auction_contract.get_end(), now + 4000);
 
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
@@ -417,7 +425,7 @@ mod tests {
         let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_minimum_bid_step(Some(U512::from(10000)));
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
         auction_contract.finalize(&auction_contract.admin.clone(), now + 4000);
@@ -432,7 +440,7 @@ mod tests {
         let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_minimum_bid_step(Some(U512::from(10001)));
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
     }
@@ -441,7 +449,7 @@ mod tests {
     fn marketplace_commission_test() {
         let now = AuctionArgsBuilder::get_now_u64();
         let auction_args = AuctionArgsBuilder::default();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         auction_contract.bid(
             &auction_contract.ali.clone(),
             U512::from(100000),
@@ -491,49 +499,16 @@ mod tests {
 
     #[test]
     fn english_auction_bid_with_enhanced_nft() {
-        let mut builder = InMemoryWasmTestBuilder::default();
-        let (admin, ali, bob) = AuctionContract::get_accounts(&mut builder);
-        let (kyc_hash, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &admin);
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &ali);
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &bob);
-
-        let (enhanced_nft_hash, enhanced_nft_package) =
-            AuctionContract::deploy_enhanced_nft(&mut builder, &admin);
-
-        AuctionContract::mint_enhanced_nft(
-            &mut builder,
-            &enhanced_nft_package,
-            &admin,
-            &Key::Account(admin),
-        );
+        let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_has_enhanced_nft();
-        auction_args.set_beneficiary(&admin);
-        auction_args.set_token_contract_hash(&enhanced_nft_package);
-        auction_args.set_kyc_package_hash(&kyc_package);
-        auction_args.set_token_id(TOKEN_META);
-        auction_args.marketplace_commission(0);
-        dbg!(&auction_args);
-        let (auction_hash, auction_package) =
-            AuctionContract::deploy_auction(&mut builder, &admin, auction_args.build());
-        let mut auction_contract = AuctionContract {
-            builder,
-            auction_hash,
-            auction_package,
-            nft_hash: enhanced_nft_hash,
-            nft_package: enhanced_nft_package,
-            kyc_hash,
-            kyc_package,
-            admin,
-            ali,
-            bob,
-        };
-        let now = AuctionArgsBuilder::get_now_u64();
+        auction_args.set_start_time(now + 500);
+        auction_args.set_end_time(5000);
+        let mut auction_contract = AuctionContract::deploy(auction_args);
         assert!(now < auction_contract.get_end());
-        auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now);
-        auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
-        auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
+        auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now + 1000);
+        auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 2000);
+        auction_contract.finalize(&auction_contract.admin.clone(), now + 5500);
         assert!(auction_contract.is_finalized());
         assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
         assert_eq!(
@@ -544,52 +519,18 @@ mod tests {
 
     #[test]
     fn dutch_auction_bid_with_enhanced_nft() {
-        let mut builder = InMemoryWasmTestBuilder::default();
-        let (admin, ali, bob) = AuctionContract::get_accounts(&mut builder);
-        let (kyc_hash, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &admin);
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &ali);
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &bob);
-
-        let (enhanced_nft_hash, enhanced_nft_package) =
-            AuctionContract::deploy_enhanced_nft(&mut builder, &admin);
-
-        AuctionContract::mint_enhanced_nft(
-            &mut builder,
-            &enhanced_nft_package,
-            &admin,
-            &Key::Account(admin),
-        );
+        let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_dutch();
-        auction_args.set_has_enhanced_nft();
         auction_args.set_starting_price(Some(U512::from(40000)));
-        auction_args.set_beneficiary(&admin);
-        auction_args.set_token_contract_hash(&enhanced_nft_package);
-        auction_args.set_kyc_package_hash(&kyc_package);
-        auction_args.set_token_id(TOKEN_META);
-        auction_args.marketplace_commission(0);
-        dbg!(&auction_args);
-        let (auction_hash, auction_package) =
-            AuctionContract::deploy_auction(&mut builder, &admin, auction_args.build());
-        let mut auction_contract = AuctionContract {
-            builder,
-            auction_hash,
-            auction_package,
-            nft_hash: enhanced_nft_hash,
-            nft_package: enhanced_nft_package,
-            kyc_hash,
-            kyc_package,
-            admin,
-            ali,
-            bob,
-        };
-        let now = AuctionArgsBuilder::get_now_u64();
-        auction_contract.bid(&auction_contract.bob.clone(), U512::from(24000), now + 1000);
+        auction_args.set_reserve_price(U512::from(20000));
+        auction_args.set_has_enhanced_nft();
+        let mut auction_contract = AuctionContract::deploy(auction_args);
+        auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 3000);
         assert!(auction_contract.is_finalized());
         assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
         assert_eq!(
-            U512::from(24000),
+            U512::from(30000),
             auction_contract.get_winning_bid().unwrap()
         );
     }

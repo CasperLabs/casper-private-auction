@@ -10,10 +10,15 @@ use casper_contract::{
     },
     unwrap_or_revert::UnwrapOrRevert,
 };
-use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
+use casper_private_auction_core::{
+    auction::Auction,
+    bids::Bids,
+    data::{self, HAS_ENHANCED_NFT},
+    AuctionLogic,
+};
 use casper_types::{
-    runtime_args, ApiError, CLType, CLTyped, CLValue, ContractPackageHash, EntryPoint,
-    EntryPointAccess, EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
+    runtime_args, ApiError, CLType, CLValue, ContractPackageHash, EntryPoint, EntryPointAccess,
+    EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
 };
 
 #[no_mangle]
@@ -122,11 +127,11 @@ pub extern "C" fn call() {
     );
     let auction_key = Key::Hash(auction_hash.value());
     runtime::put_key(
-        &format!("{}_auction_contract_hash", auction_desig),
+        &format!("{auction_desig}_auction_contract_hash"),
         auction_key,
     );
     runtime::put_key(
-        &format!("{}_auction_contract_hash_wrapped", auction_desig),
+        &format!("{auction_desig}_auction_contract_hash_wrapped"),
         storage::new_uref(auction_hash).into(),
     );
 
@@ -151,7 +156,7 @@ pub extern "C" fn call() {
     ))
     .unwrap_or_revert_with(ApiError::User(201));
     runtime::put_key(
-        &format!("{}_auction_contract_package_hash_wrapped", auction_desig),
+        &format!("{auction_desig}_auction_contract_package_hash_wrapped"),
         storage::new_uref(ContractPackageHash::new(
             auction_contract_package_hash
                 .into_hash()
@@ -160,29 +165,30 @@ pub extern "C" fn call() {
         .into(),
     );
 
-    // // CEP-47
-    // runtime::call_versioned_contract::<()>(
-    //     token_contract_hash,
-    //     None,
-    //     "transfer",
-    //     runtime_args! {
-    //         // CEP-47
-    //         "sender" => Key::Account(runtime::get_caller()),
-    //         "recipient" => auction_contract_package_hash,
-    //         "token_ids" => token_ids,
-    //     },
-    // );
-
-    // CEP-78
-    runtime::call_versioned_contract::<(String, Key)>(
-        token_contract_hash,
-        None,
-        "transfer",
-        runtime_args! {
-            // CEP-78
-            "source_key" => Key::Account(runtime::get_caller()),
-            "target_key" => auction_key,
-            "token_hash" => token_hash.clone(),
-        },
-    );
+    let has_enhanced_nft = runtime::get_named_arg::<bool>(HAS_ENHANCED_NFT);
+    if !has_enhanced_nft {
+        // CEP-47  Transfer
+        runtime::call_versioned_contract::<()>(
+            token_contract_hash,
+            None,
+            "transfer",
+            runtime_args! {
+                "sender" => Key::Account(runtime::get_caller()),
+                "recipient" => auction_contract_package_hash,
+                "token_ids" => token_ids,
+            },
+        );
+    } else {
+        // CEP-78 Transfer
+        runtime::call_versioned_contract::<(String, Key)>(
+            token_contract_hash,
+            None,
+            "transfer",
+            runtime_args! {
+                "source_key" => Key::Account(runtime::get_caller()),
+                "target_key" => auction_key,
+                "token_hash" => token_hash,
+            },
+        );
+    }
 }

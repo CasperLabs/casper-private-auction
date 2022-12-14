@@ -4,6 +4,8 @@ pub const CONTRACT_CEP_47_TOKEN: &str = "cep_47.wasm";
 pub const CONTRACT_CEP_78_TOKEN: &str = "cep_78.wasm";
 pub const CONTRACT_AUCTION: &str = "casper-private-auction-installer.wasm";
 pub const SESSION_BID_PURSE: &str = "bid-purse.wasm";
+pub const SESSION_EXTENDED_BID_PURSE: &str = "extend-bid-purse.wasm";
+pub const SESSION_DELTA_BID_PURSE: &str = "delta-bid-purse.wasm";
 
 // Named Keys
 pub const KEY_CEP_47_CONTRACT_NAME: &str = "cep_47_token";
@@ -13,9 +15,9 @@ pub const KEY_CEP_47_PACKAGE_HASH: &str = "cep_47_token_package_hash";
 pub const KEY_CEP_78_CONTRACT_HASH: &str = "nft_contract";
 pub const KEY_CEP_78_PACKAGE_HASH: &str = "nft_contract_package";
 
-pub const KEY_KYC_CONTRACT_NAME: &str = "kyc_token";
-pub const KEY_KYC_CONTRACT_HASH: &str = "kyc_token_contract_hash";
-pub const KEY_KYC__PACKAGE_HASH: &str = "kyc_token_package_hash";
+pub const KEY_KYC_CONTRACT_NAME: &str = "kyc";
+pub const KEY_KYC_CONTRACT_HASH: &str = "kyc_contract_hash";
+pub const KEY_KYC_PACKAGE_HASH: &str = "kyc_package_hash";
 
 pub const KEY_AUCTION_CONTRACT_HASH: &str = "AUCTION_auction_contract_hash";
 pub const KEY_AUCTION_PACKAGE_HASH: &str = "AUCTION_auction_contract_package_hash";
@@ -57,10 +59,11 @@ pub const ARG_NFT_METADATA_KIND: &str = "nft_metadata_kind";
 pub const ARG_METADATA_MUTABILITY: &str = "metadata_mutability";
 pub const ARG_TOKEN_META_DATA: &str = "token_meta_data";
 
-// This const can be found in data.rs
+// These const can be found in private auction core data.rs
 pub const TOKEN_ID: &str = "token_id";
 pub const TOKEN_META: &str = "token_meta";
 pub const ARG_TOKEN_OWNER: &str = "token_owner";
+pub const START_TIME: &str = "start_time";
 
 // Specific
 pub const STATUS: &str = "status";
@@ -73,3 +76,17 @@ pub const TOKEN_COMISSIONS: &str = "token_commissions";
 pub const PURSE_NAME: &str = "purse_name";
 pub const PURSE_NAME_VALUE: &str = "my_auction_purse";
 pub const AUCTION_CONTRACT: &str = "auction_contract";
+
+pub const BENEFICIARY_ACCOUNT: &str = "beneficiary_account";
+pub const TOKEN_CONTRACT_HASH: &str = "token_contract_hash";
+pub const FORMAT: &str = "format";
+pub const STARTING_PRICE: &str = "starting_price";
+pub const RESERVE_PRICE: &str = "reserve_price";
+pub const CANCELLATION_TIME: &str = "cancellation_time";
+pub const END_TIME: &str = "end_time";
+pub const BIDDER_COUNT_CAP: &str = "bidder_count_cap";
+pub const AUCTION_TIMER_EXTENSION: &str = "auction_timer_extension";
+pub const MINIMUM_BID_STEP: &str = "minimum_bid_step";
+pub const MARKETPLACE_ACCOUNT: &str = "marketplace_account";
+pub const MARKETPLACE_COMMISSION: &str = "marketplace_commission";
+pub const HAS_ENHANCED_NFT: &str = "has_enhanced_nft";
