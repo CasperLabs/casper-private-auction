@@ -249,12 +249,12 @@ impl AuctionContract {
             ARG_COLLECTION_NAME => TOKEN_CEP_78_NAME,
             ARG_COLLECTION_SYMBOL => TOKEN_CEP_78_SYMBOL,
             ARG_TOTAL_TOKEN_SUPPLY => 1000_u64,
-            ARG_OWNERSHIP_MODE => 2_u8, // transferable
-            ARG_NFT_KIND => 1_u8, // virtual good
+            ARG_OWNERSHIP_MODE => 2_u8, // must be transferable
+            ARG_NFT_KIND => 0_u8, // virtual good
             ARG_NFT_METADATA_KIND => 2_u8, // raw
             ARG_JSON_SCHEMA => ARG_META,
-            ARG_IDENTIFIER_MODE => 1_u8,
-            ARG_METADATA_MUTABILITY => 0_u8,
+            ARG_IDENTIFIER_MODE => 1_u8, // must be using hash as identifier
+            ARG_METADATA_MUTABILITY => 0_u8, // must be immutable as per ARG_IDENTIFIER_MODE
         };
         let nft_code = PathBuf::from(CONTRACT_CEP_78_TOKEN);
 
