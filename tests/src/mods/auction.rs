@@ -1,20 +1,20 @@
 use super::{
     auction_args::AuctionArgsBuilder,
     constants::{
-        ARG_ADMIN, ARG_COLLECTION_NAME, ARG_COLLECTION_SYMBOL, ARG_CONTRACT_NAME,
+        ACTIVE, ARG_ADMIN, ARG_COLLECTION_NAME, ARG_COLLECTION_SYMBOL, ARG_CONTRACT_NAME,
         ARG_IDENTIFIER_MODE, ARG_JSON_SCHEMA, ARG_META, ARG_METADATA_MUTABILITY, ARG_NAME,
         ARG_NFT_KIND, ARG_NFT_METADATA_KIND, ARG_OWNERSHIP_MODE, ARG_RECIPIENT, ARG_SYMBOL,
         ARG_TOKEN_META_DATA, ARG_TOKEN_OWNER, ARG_TOTAL_TOKEN_SUPPLY, AUCTION_CONTRACT,
-        CONTRACT_AUCTION, CONTRACT_CEP_47_TOKEN, CONTRACT_CEP_78_TOKEN, CONTRACT_KYC,
+        AUCTION_NAME, CONTRACT_AUCTION, CONTRACT_CEP_47_TOKEN, CONTRACT_CEP_78_TOKEN, CONTRACT_KYC,
         KEY_CEP_47_CONTRACT_HASH, KEY_CEP_47_CONTRACT_NAME, KEY_CEP_47_PACKAGE_HASH,
         KEY_CEP_78_CONTRACT_HASH, KEY_CEP_78_PACKAGE_HASH, KEY_KYC_CONTRACT_HASH,
         KEY_KYC_CONTRACT_NAME, KEY_KYC_PACKAGE_HASH, PURSE_NAME, PURSE_NAME_VALUE,
-        SESSION_BID_PURSE, SESSION_DELTA_BID_PURSE, SESSION_EXTENDED_BID_PURSE, TOKEN_CEP_47_NAME,
-        TOKEN_CEP_47_SYMBOL, TOKEN_CEP_78_NAME, TOKEN_CEP_78_SYMBOL, TOKEN_COMISSIONS,
-        TOKEN_GAUGES, TOKEN_ID, TOKEN_IDS, TOKEN_KYC_NAME, TOKEN_KYC_SYMBOL, TOKEN_META,
-        TOKEN_METAS, TOKEN_WAREHOUSES,
+        SESSION_BID_PURSE, SESSION_DELTA_BID_PURSE, SESSION_EXTENDED_BID_PURSE, STATUS,
+        TOKEN_CEP_47_NAME, TOKEN_CEP_47_SYMBOL, TOKEN_CEP_78_NAME, TOKEN_CEP_78_SYMBOL,
+        TOKEN_COMISSIONS, TOKEN_GAUGES, TOKEN_ID, TOKEN_IDS, TOKEN_KYC_NAME, TOKEN_KYC_SYMBOL,
+        TOKEN_META, TOKEN_METAS, TOKEN_WAREHOUSES, WRAPPED,
     },
-    utils::{deploy, fund_account, query, query_dictionary_item, DeploySource},
+    utils::{deploy, fund_account, get_privayte_keys, query, query_dictionary_item, DeploySource},
 };
 use casper_engine_test_support::{
     InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT, DEFAULT_RUN_GENESIS_REQUEST,
@@ -22,7 +22,7 @@ use casper_engine_test_support::{
 use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
 use casper_types::{
     account::AccountHash, bytesrepr::FromBytes, runtime_args, system::mint::METHOD_MINT, CLTyped,
-    ContractHash, ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
+    ContractHash, ContractPackageHash, Key, PublicKey, RuntimeArgs, U512,
 };
 use maplit::btreemap;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -41,30 +41,29 @@ pub struct AuctionContract {
 }
 
 impl AuctionContract {
-    pub fn deploy_with_default_args(english: bool, start_time: u64) -> Self {
+    pub fn deploy_contracts_with_default_args(english: bool, start_time: u64) -> Self {
         let mut auction_args = AuctionArgsBuilder::default();
         if !english {
             auction_args.set_dutch();
         }
         auction_args.set_start_time(start_time);
-        Self::deploy_contracts(auction_args)
+        let builder = InMemoryWasmTestBuilder::default();
+        Self::deploy(builder, auction_args)
     }
 
-    pub fn deploy(auction_args: AuctionArgsBuilder) -> Self {
+    pub fn deploy_contracts(auction_args: AuctionArgsBuilder) -> Self {
+        let builder = InMemoryWasmTestBuilder::default();
         if auction_args.has_enhanced_nft() {
-            Self::deploy_contracts_with_enhanced_nft(auction_args)
+            Self::deploy_with_enhanced_nft(builder, auction_args)
         } else {
-            Self::deploy_contracts(auction_args)
+            Self::deploy(builder, auction_args)
         }
     }
 
     pub fn get_accounts(
         builder: &mut WasmTestBuilder<InMemoryGlobalState>,
     ) -> (AccountHash, AccountHash, AccountHash) {
-        let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
-        let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
-        let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
-
+        let (admin_secret, ali_secret, bob_secret) = get_privayte_keys();
         let admin_pk: PublicKey = PublicKey::from(&admin_secret);
         let admin = admin_pk.to_account_hash();
         let ali_pk: PublicKey = PublicKey::from(&ali_secret);
@@ -79,8 +78,10 @@ impl AuctionContract {
         (admin, ali, bob)
     }
 
-    fn deploy_contracts(mut auction_args: AuctionArgsBuilder) -> Self {
-        let mut builder = InMemoryWasmTestBuilder::default();
+    fn deploy(
+        mut builder: WasmTestBuilder<InMemoryGlobalState>,
+        mut auction_args: AuctionArgsBuilder,
+    ) -> Self {
         let (admin, ali, bob) = Self::get_accounts(&mut builder);
         let (kyc_hash, kyc_package) = Self::deploy_kyc(&mut builder, &admin);
         Self::add_kyc(&mut builder, &kyc_package, &admin, &admin);
@@ -89,7 +90,6 @@ impl AuctionContract {
 
         let (nft_hash, nft_package) = Self::deploy_nft(&mut builder, &admin);
 
-        let token_id = String::from("custom_token_id");
         let token_meta = btreemap! {
             "origin".to_string() => "fire".to_string()
         };
@@ -99,7 +99,7 @@ impl AuctionContract {
             &mut builder,
             &nft_package,
             &Key::Account(admin),
-            &token_id,
+            TOKEN_ID,
             &token_meta,
             &admin,
             commissions,
@@ -108,7 +108,7 @@ impl AuctionContract {
         auction_args.set_beneficiary(&admin);
         auction_args.set_token_contract_hash(&nft_package);
         auction_args.set_kyc_package_hash(&kyc_package);
-        auction_args.set_token_id(&token_id);
+        auction_args.set_token_id(TOKEN_ID);
 
         let (auction_hash, auction_package) =
             Self::deploy_auction(&mut builder, &admin, auction_args.build());
@@ -127,8 +127,10 @@ impl AuctionContract {
         }
     }
 
-    fn deploy_contracts_with_enhanced_nft(mut auction_args: AuctionArgsBuilder) -> Self {
-        let mut builder = InMemoryWasmTestBuilder::default();
+    fn deploy_with_enhanced_nft(
+        mut builder: WasmTestBuilder<InMemoryGlobalState>,
+        mut auction_args: AuctionArgsBuilder,
+    ) -> Self {
         let (admin, ali, bob) = Self::get_accounts(&mut builder);
         let (kyc_hash, kyc_package) = Self::deploy_kyc(&mut builder, &admin);
         Self::add_kyc(&mut builder, &kyc_package, &admin, &admin);
@@ -170,6 +172,7 @@ impl AuctionContract {
         builder: &mut InMemoryWasmTestBuilder,
         admin: &AccountHash,
     ) -> (ContractHash, ContractPackageHash) {
+        // Specific value
         let mut meta = BTreeMap::new();
         meta.insert("origin".to_string(), "kyc".to_string());
 
@@ -193,12 +196,12 @@ impl AuctionContract {
         let contract_hash = query(
             builder,
             Key::Account(*admin),
-            &[[KEY_KYC_CONTRACT_HASH, "wrapped"].join("_")],
+            &[[KEY_KYC_CONTRACT_HASH, WRAPPED].join("_")],
         );
         let contract_package = query(
             builder,
             Key::Account(*admin),
-            &[[KEY_KYC_PACKAGE_HASH, "wrapped"].join("_")],
+            &[[KEY_KYC_PACKAGE_HASH, WRAPPED].join("_")],
         );
 
         (contract_hash, contract_package)
@@ -228,12 +231,12 @@ impl AuctionContract {
         let contract_hash: ContractHash = query(
             builder,
             Key::Account(*admin),
-            &[[KEY_CEP_47_CONTRACT_HASH, "wrapped"].join("_")],
+            &[[KEY_CEP_47_CONTRACT_HASH, WRAPPED].join("_")],
         );
         let contract_package: ContractPackageHash = query(
             builder,
             Key::Account(*admin),
-            &[[KEY_CEP_47_PACKAGE_HASH, "wrapped"].join("_")],
+            &[[KEY_CEP_47_PACKAGE_HASH, WRAPPED].join("_")],
         );
         (contract_hash, contract_package)
     }
@@ -248,7 +251,7 @@ impl AuctionContract {
             ARG_TOTAL_TOKEN_SUPPLY => 1000_u64,
             ARG_OWNERSHIP_MODE => 2_u8, // transferable
             ARG_NFT_KIND => 1_u8, // virtual good
-            ARG_NFT_METADATA_KIND => 2_u8,
+            ARG_NFT_METADATA_KIND => 2_u8, // raw
             ARG_JSON_SCHEMA => ARG_META,
             ARG_IDENTIFIER_MODE => 1_u8,
             ARG_METADATA_MUTABILITY => 0_u8,
@@ -302,12 +305,12 @@ impl AuctionContract {
         let contract_hash: ContractHash = query(
             builder,
             Key::Account(*admin),
-            &["test_auction_contract_hash_wrapped".to_string()],
+            &[[AUCTION_NAME, "auction_contract_hash_wrapped"].join("_")],
         );
         let contract_package: ContractPackageHash = query(
             builder,
             Key::Account(*admin),
-            &["test_auction_contract_package_hash_wrapped".to_string()],
+            &[[AUCTION_NAME, "auction_contract_package_hash_wrapped"].join("_")],
         );
         (contract_hash, contract_package)
     }
@@ -321,6 +324,7 @@ impl AuctionContract {
         sender: &AccountHash,
         mut commissions: BTreeMap<String, String>,
     ) {
+        // Specific
         let mut gauge: BTreeMap<String, String> = BTreeMap::new();
         gauge.insert("gauge".to_string(), "is_gaugy".to_string());
         let mut warehouse: BTreeMap<String, String> = BTreeMap::new();
@@ -331,6 +335,7 @@ impl AuctionContract {
                 .to_string(),
         );
         commissions.insert("comm_rate".to_string(), "55".to_string());
+
         let args = runtime_args! {
             ARG_RECIPIENT => *recipient,
             TOKEN_IDS => Some(vec![token_id.to_string()]),
@@ -385,14 +390,15 @@ impl AuctionContract {
         admin: &AccountHash,
         recipient: &AccountHash,
     ) {
+        // Specific
         let mut token_meta = BTreeMap::new();
-        token_meta.insert("status".to_string(), "active".to_string());
+        token_meta.insert(STATUS.to_string(), ACTIVE.to_string());
+
         let args = runtime_args! {
             ARG_RECIPIENT => Key::Account(*recipient),
             TOKEN_ID => Some(recipient.to_string()),
             TOKEN_META => token_meta,
         };
-
         deploy(
             builder,
             admin,
@@ -467,19 +473,19 @@ impl AuctionContract {
     }
 
     pub fn is_finalized(&self) -> bool {
-        self.query_contract(self.auction_hash.value(), "finalized")
+        self.query_contract("finalized")
     }
 
     pub fn get_end(&self) -> u64 {
-        self.query_contract(self.auction_hash.value(), "end_time")
+        self.query_contract("end_time")
     }
 
     pub fn get_winner(&self) -> Option<AccountHash> {
-        self.query_contract(self.auction_hash.value(), "current_winner")
+        self.query_contract("current_winner")
     }
 
     pub fn get_winning_bid(&self) -> Option<U512> {
-        self.query_contract(self.auction_hash.value(), "winning_bid")
+        self.query_contract("winning_bid")
     }
 
     pub fn get_event(&self, contract_hash: [u8; 32], index: u32) -> BTreeMap<String, String> {
@@ -504,14 +510,11 @@ impl AuctionContract {
     }
 
     pub fn get_events_count(&self, contract_hash: [u8; 32]) -> u32 {
-        self.query_contract(
-            contract_hash,
-            if contract_hash != self.auction_hash.value() {
-                "events_count"
-            } else {
-                "auction_events_count"
-            },
-        )
+        self.query_contract(if contract_hash != self.auction_hash.value() {
+            "events_count"
+        } else {
+            "auction_events_count"
+        })
     }
 
     /// Wrapper function for calling an entrypoint on the contract with the access rights of the deployer.
@@ -545,16 +548,12 @@ impl AuctionContract {
     }
 
     // TODO remove hardcoded names DragonsNFT / test
-    fn query_contract<T: CLTyped + FromBytes>(&self, contract_hash: [u8; 32], name: &str) -> T {
+    fn query_contract<T: CLTyped + FromBytes>(&self, name: &str) -> T {
         query(
             &self.builder,
             Key::Account(self.admin),
             &[
-                if contract_hash != self.auction_hash.value() {
-                    "DragonsNFT_contract".to_string()
-                } else {
-                    "test_auction_contract_hash".to_string()
-                },
+                [AUCTION_NAME, "auction_contract_hash"].join("_"),
                 name.to_string(),
             ],
         )

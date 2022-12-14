@@ -12,6 +12,12 @@ use casper_types::{
 
 use crate::{
     bids::Bids,
+    constants::{
+        AUCTION_PURSE, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_NUMBER_CAP, CANCEL,
+        COMMISSIONS, END_TIME, ENGLISH_FORMAT, EVENTS, EVENTS_COUNT, FINALIZED, FORMAT,
+        HAS_ENHANCED_NFT, KYC_HASH, MARKETPLACE_ACCOUNT, MARKETPLACE_COMMISSION, MINIMUM_BID_STEP,
+        NFT_HASH, OWNER, PRICE, RESERVE, START_PRICE, START_TIME, TOKEN_ID, WINNER,
+    },
     error::AuctionError,
     events::{emit, AuctionEvent},
 };
@@ -21,40 +27,6 @@ use alloc::{
     string::{String, ToString},
 };
 use casper_types::{account::AccountHash, contracts::NamedKeys, Key, U512};
-
-// TODO: Either separate arg name and named key consistently, or not at all
-pub const OWNER: &str = "token_owner";
-pub const BENEFICIARY_ACCOUNT: &str = "beneficiary_account";
-pub const AUCTION_PURSE: &str = "auction_purse";
-pub const NFT_HASH: &str = "token_contract_hash";
-pub const ENGLISH_FORMAT: &str = "english_format";
-pub const TOKEN_ID: &str = "token_id";
-pub const START_TIME: &str = "start_time";
-pub const CANCEL: &str = "cancellation_time";
-pub const END_TIME: &str = "end_time";
-pub const RESERVE: &str = "reserve_price";
-pub const START_PRICE: &str = "starting_price";
-pub const PRICE: &str = "winning_bid";
-pub const WINNER: &str = "current_winner";
-pub const FINALIZED: &str = "finalized";
-pub const BID: &str = "bid";
-pub const BID_PURSE: &str = "bid_purse";
-pub const CANCEL_FUNC: &str = "cancel_bid";
-pub const FINALIZE_FUNC: &str = "finalize";
-pub const CANCEL_AUCTION_FUNC: &str = "cancel_auction";
-pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_package_hash";
-pub const AUCTION_ACCESS_TOKEN: &str = "auction_access_token";
-pub const EVENTS: &str = "auction_events";
-pub const EVENTS_COUNT: &str = "auction_events_count";
-pub const COMMISSIONS: &str = "commissions";
-pub const KYC_HASH: &str = "kyc_package_hash";
-pub const BIDDER_NUMBER_CAP: &str = "bidder_count_cap";
-pub const AUCTION_TIMER_EXTENSION: &str = "auction_timer_extension";
-pub const MINIMUM_BID_STEP: &str = "minimum_bid_step";
-pub const MARKETPLACE_COMMISSION: &str = "marketplace_commission";
-pub const MARKETPLACE_ACCOUNT: &str = "marketplace_account";
-pub const FORMAT: &str = "format";
-pub const HAS_ENHANCED_NFT: &str = "has_enhanced_nft";
 
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {

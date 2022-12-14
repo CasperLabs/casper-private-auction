@@ -13,7 +13,12 @@ pub use casper_types::{
     CLTyped, ContractHash, Key, RuntimeArgs, URef, U512,
 };
 
-use crate::error::AuctionError;
+use crate::{
+    constants::{
+        BID, BID_PURSE, RECIPIENT, SENDER, SOURCE_KEY, TARGET_KEY, TOKEN_HASH, TOKEN_IDS, TRANSFER,
+    },
+    error::AuctionError,
+};
 use crate::{
     data::AuctionData,
     events::{emit, AuctionEvent},
@@ -88,7 +93,7 @@ impl Auction {
     }
 
     fn auction_transfer_token(recipient: Key) {
-        let (contract_hash, contract_package_hash): (Key, Key) = {
+        let (Some(contract_hash), Some(contract_package_hash)) = ({
             let call_stack = runtime::get_call_stack();
             let caller: CallStackElement = call_stack
                 .last()
@@ -99,14 +104,13 @@ impl Auction {
                     contract_package_hash,
                     contract_hash,
                 } => (
-                    Key::Hash(contract_hash.value()),
-                    Key::Hash(contract_package_hash.value()),
+                    Some(Key::Hash(contract_hash.value())),
+                    Some(Key::Hash(contract_package_hash.value())),
                 ),
-                _ => (
-                    runtime::revert(AuctionError::InvalidCaller),
-                    runtime::revert(AuctionError::InvalidCaller),
-                ),
+                _ => (None, None),
             }
+        }) else {
+            runtime::revert(AuctionError::InvalidCaller);
         };
 
         let has_enhanced_nft: bool = AuctionData::get_has_enhanced_nft();
@@ -117,11 +121,11 @@ impl Auction {
             runtime::call_versioned_contract::<()>(
                 AuctionData::get_nft_hash(),
                 None,
-                "transfer",
+                TRANSFER,
                 runtime_args! {
-                    "sender" => contract_package_hash,
-                    "recipient" => recipient,
-                    "token_ids" => token_ids,
+                    SENDER => contract_package_hash,
+                    RECIPIENT  => recipient,
+                    TOKEN_IDS => token_ids,
                 },
             );
         } else {
@@ -130,11 +134,11 @@ impl Auction {
             runtime::call_versioned_contract::<(String, Key)>(
                 AuctionData::get_nft_hash(),
                 None,
-                "transfer",
+                TRANSFER,
                 runtime_args! {
-                    "source_key" => contract_hash,
-                    "target_key" => recipient,
-                    "token_hash" => token_hash,
+                    SOURCE_KEY => contract_hash,
+                    TARGET_KEY => recipient,
+                    TOKEN_HASH => token_hash,
                 },
             );
         }
@@ -223,11 +227,11 @@ impl crate::AuctionLogic for Auction {
         // We do not check times here because we do that in Auction::add_bid
         // Figure out who is trying to bid and what their bid is
         let bidder = Self::get_bidder();
-        let bid = runtime::get_named_arg::<U512>(crate::data::BID);
+        let bid = runtime::get_named_arg::<U512>(BID);
         if bid < AuctionData::get_reserve() {
             runtime::revert(AuctionError::BidBelowReserve);
         }
-        let bidder_purse = runtime::get_named_arg::<URef>(crate::data::BID_PURSE);
+        let bidder_purse = runtime::get_named_arg::<URef>(BID_PURSE);
         // Adding the bid, doing the purse transfer and resetting the winner if necessary, as well as possibly ending a Dutch auction
         let winner = AuctionData::get_winner();
         let price = AuctionData::get_price();

@@ -7,7 +7,7 @@ use casper_engine_test_support::{
 use casper_execution_engine::core::engine_state::ExecuteRequest;
 use casper_types::{
     account::AccountHash, bytesrepr::FromBytes, runtime_args, system::mint, CLTyped, ContractHash,
-    ContractPackageHash, Key, RuntimeArgs, StoredValue, U512,
+    ContractPackageHash, Key, RuntimeArgs, SecretKey, StoredValue, U512,
 };
 use rand::Rng;
 
@@ -138,4 +138,15 @@ pub fn query_dictionary_item(
         _ => return Err("Unsupported key type for a query to a dictionary item".to_string()),
     };
     builder.query(None, address, &empty_path)
+}
+
+pub fn get_privayte_keys() -> (
+    casper_types::SecretKey,
+    casper_types::SecretKey,
+    casper_types::SecretKey,
+) {
+    let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
+    let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
+    let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
+    (admin_secret, ali_secret, bob_secret)
 }

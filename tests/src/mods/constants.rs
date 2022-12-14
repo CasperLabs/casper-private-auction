@@ -19,13 +19,8 @@ pub const KEY_KYC_CONTRACT_NAME: &str = "kyc";
 pub const KEY_KYC_CONTRACT_HASH: &str = "kyc_contract_hash";
 pub const KEY_KYC_PACKAGE_HASH: &str = "kyc_package_hash";
 
-pub const KEY_AUCTION_CONTRACT_HASH: &str = "AUCTION_auction_contract_hash";
-pub const KEY_AUCTION_PACKAGE_HASH: &str = "AUCTION_auction_contract_package_hash";
-
-// Entry points
-pub const ENTRY_POINT_GRANT_GATEKEEPER: &str = "grant_gatekeeper";
-
 // Config
+pub const AUCTION_CONTRACT: &str = "auction_contract";
 pub const AUCTION_NAME: &str = "AUCTION";
 pub const TOKEN_CEP_47_NAME: &str = "CEP_47_TOKEN";
 pub const TOKEN_CEP_47_SYMBOL: &str = "CEP_47";
@@ -40,32 +35,29 @@ pub const ARG_SYMBOL: &str = "symbol";
 pub const ARG_META: &str = "meta";
 pub const ARG_ADMIN: &str = "admin";
 pub const ARG_CONTRACT_NAME: &str = "contract_name";
-pub const ARG_GATEKEEPER: &str = "gatekeeper";
 pub const ARG_RECIPIENT: &str = "recipient";
 pub const ARG_COLLECTION_NAME: &str = "collection_name";
 pub const ARG_COLLECTION_SYMBOL: &str = "collection_symbol";
 pub const ARG_TOTAL_TOKEN_SUPPLY: &str = "total_token_supply";
-pub const ARG_ALLOW_MINTING: &str = "allow_minting";
-pub const ARG_MINTING_MODE: &str = "minting_mode";
 pub const ARG_OWNERSHIP_MODE: &str = "ownership_mode";
 pub const ARG_NFT_KIND: &str = "nft_kind";
-pub const ARG_HOLDER_MODE: &str = "holder_mode";
-pub const ARG_WHITELIST_MODE: &str = "whitelist_mode";
-pub const ARG_CONTRACT_WHITELIST: &str = "contract_whitelist";
 pub const ARG_JSON_SCHEMA: &str = "json_schema";
 pub const ARG_IDENTIFIER_MODE: &str = "identifier_mode";
-pub const ARG_BURN_MODE: &str = "burn_mode";
 pub const ARG_NFT_METADATA_KIND: &str = "nft_metadata_kind";
 pub const ARG_METADATA_MUTABILITY: &str = "metadata_mutability";
 pub const ARG_TOKEN_META_DATA: &str = "token_meta_data";
 
-// These const can be found in private auction core data.rs
+// TODO fetch those const from core constants
 pub const TOKEN_ID: &str = "token_id";
 pub const TOKEN_META: &str = "token_meta";
 pub const ARG_TOKEN_OWNER: &str = "token_owner";
 pub const START_TIME: &str = "start_time";
+pub const BID: &str = "bid";
 
 // Specific
+pub const ENGLISH: &str = "ENGLISH";
+pub const DUTCH: &str = "DUTCH";
+pub const WRAPPED: &str = "wrapped";
 pub const STATUS: &str = "status";
 pub const ACTIVE: &str = "active";
 pub const TOKEN_IDS: &str = "token_ids";
@@ -75,8 +67,6 @@ pub const TOKEN_WAREHOUSES: &str = "token_warehouses";
 pub const TOKEN_COMISSIONS: &str = "token_commissions";
 pub const PURSE_NAME: &str = "purse_name";
 pub const PURSE_NAME_VALUE: &str = "my_auction_purse";
-pub const AUCTION_CONTRACT: &str = "auction_contract";
-
 pub const BENEFICIARY_ACCOUNT: &str = "beneficiary_account";
 pub const TOKEN_CONTRACT_HASH: &str = "token_contract_hash";
 pub const FORMAT: &str = "format";

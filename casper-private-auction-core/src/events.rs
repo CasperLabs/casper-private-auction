@@ -1,4 +1,4 @@
-use crate::data::{EVENTS, EVENTS_COUNT};
+use crate::constants::{EVENTS, EVENTS_COUNT};
 use crate::error::AuctionError;
 use alloc::collections::BTreeMap;
 use alloc::format;

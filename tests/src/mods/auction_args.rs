@@ -1,13 +1,15 @@
 use casper_types::{
-    account::AccountHash, runtime_args, ContractPackageHash, Key, PublicKey, RuntimeArgs,
-    SecretKey, U512,
+    account::AccountHash, runtime_args, ContractPackageHash, Key, PublicKey, RuntimeArgs, U512,
 };
 
-use super::constants::{
-    ARG_NAME, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_COUNT_CAP, CANCELLATION_TIME,
-    END_TIME, FORMAT, HAS_ENHANCED_NFT, KEY_KYC_PACKAGE_HASH, MARKETPLACE_ACCOUNT,
-    MARKETPLACE_COMMISSION, MINIMUM_BID_STEP, RESERVE_PRICE, STARTING_PRICE, START_TIME,
-    TOKEN_CONTRACT_HASH, TOKEN_ID,
+use super::{
+    constants::{
+        ARG_NAME, AUCTION_NAME, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_COUNT_CAP,
+        CANCELLATION_TIME, DUTCH, END_TIME, ENGLISH, FORMAT, HAS_ENHANCED_NFT,
+        KEY_KYC_PACKAGE_HASH, MARKETPLACE_ACCOUNT, MARKETPLACE_COMMISSION, MINIMUM_BID_STEP,
+        RESERVE_PRICE, STARTING_PRICE, START_TIME, TOKEN_CONTRACT_HASH, TOKEN_ID,
+    },
+    utils::get_privayte_keys,
 };
 
 #[derive(Debug)]
@@ -97,7 +99,7 @@ impl AuctionArgsBuilder {
         self.minimum_bid_step = minimum_bid_step;
     }
 
-    pub fn marketplace_commission(&mut self, marketplace_commission: u32) {
+    pub fn set_marketplace_commission(&mut self, marketplace_commission: u32) {
         self.marketplace_commission = marketplace_commission;
     }
 
@@ -114,7 +116,7 @@ impl AuctionArgsBuilder {
             BENEFICIARY_ACCOUNT => Key::Account(self.beneficiary_account),
             TOKEN_CONTRACT_HASH => Key::Hash(self.token_contract_hash.value()),
             KEY_KYC_PACKAGE_HASH => Key::Hash(self.kyc_package_hash.value()),
-            FORMAT => if self.is_english{"ENGLISH"}else{"DUTCH"},
+            FORMAT => if self.is_english{ENGLISH}else{DUTCH},
             STARTING_PRICE => self.starting_price,
             RESERVE_PRICE => self.reserve_price,
             TOKEN_ID => self.token_id.to_owned(),
@@ -142,7 +144,7 @@ impl AuctionArgsBuilder {
 
 impl Default for AuctionArgsBuilder {
     fn default() -> Self {
-        let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
+        let (admin_secret, _, _) = get_privayte_keys();
         let now: u64 = Self::get_now_u64();
         AuctionArgsBuilder {
             beneficiary_account: AccountHash::from(&PublicKey::from(&admin_secret)),
@@ -155,7 +157,7 @@ impl Default for AuctionArgsBuilder {
             start_time: now + 500,
             cancellation_time: 3000,
             end_time: 3500,
-            name: "test".to_string(),
+            name: AUCTION_NAME.to_string(),
             bidder_count_cap: None,
             auction_timer_extension: None,
             minimum_bid_step: None,
