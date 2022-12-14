@@ -9,7 +9,6 @@ copy-wasm-files-to-tests:
 	cp target/wasm32-unknown-unknown/release/*.wasm tests/wasm
 	cp nctl-tests/setup/fixtures/contracts/cask-token.wasm tests/wasm/nft-contract.wasm
 	cp nctl-tests/setup/fixtures/contracts/civic-token.wasm tests/wasm/kyc-contract.wasm
-	cp tests/wasm/*.wasm example/casper-private-auction-tests/wasm/
 
 test: build-contract copy-wasm-files-to-tests rust-test-only
 

@@ -1,20 +1,30 @@
-use std::{collections::BTreeMap, path::PathBuf};
-
-use crate::{
-    auction_args::{self, AuctionArgsBuilder},
+use super::{
+    auction_args::AuctionArgsBuilder,
+    constants::{
+        ARG_ADMIN, ARG_COLLECTION_NAME, ARG_COLLECTION_SYMBOL, ARG_CONTRACT_NAME,
+        ARG_IDENTIFIER_MODE, ARG_JSON_SCHEMA, ARG_META, ARG_METADATA_MUTABILITY, ARG_NAME,
+        ARG_NFT_KIND, ARG_NFT_METADATA_KIND, ARG_OWNERSHIP_MODE, ARG_RECIPIENT, ARG_SYMBOL,
+        ARG_TOKEN_META_DATA, ARG_TOKEN_OWNER, ARG_TOTAL_TOKEN_SUPPLY, AUCTION_CONTRACT,
+        CONTRACT_AUCTION, CONTRACT_CEP_47_TOKEN, CONTRACT_CEP_78_TOKEN, CONTRACT_KYC,
+        KEY_CEP_47_CONTRACT_HASH, KEY_CEP_47_CONTRACT_NAME, KEY_CEP_47_PACKAGE_HASH,
+        KEY_CEP_78_CONTRACT_HASH, KEY_CEP_78_PACKAGE_HASH, KEY_KYC_CONTRACT_HASH,
+        KEY_KYC_CONTRACT_NAME, KEY_KYC__PACKAGE_HASH, PURSE_NAME, PURSE_NAME_VALUE,
+        SESSION_BID_PURSE, TOKEN_CEP_47_NAME, TOKEN_CEP_47_SYMBOL, TOKEN_CEP_78_NAME,
+        TOKEN_CEP_78_SYMBOL, TOKEN_COMISSIONS, TOKEN_GAUGES, TOKEN_ID, TOKEN_IDS, TOKEN_KYC_NAME,
+        TOKEN_KYC_SYMBOL, TOKEN_META, TOKEN_METAS, TOKEN_WAREHOUSES,
+    },
     utils::{deploy, fund_account, query, query_dictionary_item, DeploySource},
 };
 use casper_engine_test_support::{
-    DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
-    DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT, DEFAULT_RUN_GENESIS_REQUEST,
+    InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT, DEFAULT_RUN_GENESIS_REQUEST,
 };
-
 use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
 use casper_types::{
-    account::AccountHash, bytesrepr::FromBytes, runtime_args, CLTyped, ContractHash,
-    ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, URef, U512,
+    account::AccountHash, bytesrepr::FromBytes, runtime_args, system::mint::METHOD_MINT, CLTyped,
+    ContractHash, ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U512,
 };
 use maplit::btreemap;
+use std::{collections::BTreeMap, path::PathBuf};
 
 pub struct AuctionContract {
     pub builder: InMemoryWasmTestBuilder,
@@ -39,11 +49,13 @@ impl AuctionContract {
         Self::deploy_contracts(auction_args)
     }
 
-    pub fn deploy(mut auction_args: AuctionArgsBuilder) -> Self {
+    pub fn deploy(auction_args: AuctionArgsBuilder) -> Self {
         Self::deploy_contracts(auction_args)
     }
 
-    pub fn deploy_contracts(mut auction_args: AuctionArgsBuilder) -> Self {
+    pub fn get_accounts(
+        builder: &mut WasmTestBuilder<InMemoryGlobalState>,
+    ) -> (AccountHash, AccountHash, AccountHash) {
         let admin_secret = SecretKey::ed25519_from_bytes([1u8; 32]).unwrap();
         let ali_secret = SecretKey::ed25519_from_bytes([3u8; 32]).unwrap();
         let bob_secret = SecretKey::ed25519_from_bytes([5u8; 32]).unwrap();
@@ -55,24 +67,77 @@ impl AuctionContract {
         let bob_pk: PublicKey = PublicKey::from(&bob_secret);
         let bob = bob_pk.to_account_hash();
 
-        let mut builder = InMemoryWasmTestBuilder::default();
         builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
         builder.exec(fund_account(&admin)).expect_success().commit();
         builder.exec(fund_account(&ali)).expect_success().commit();
         builder.exec(fund_account(&bob)).expect_success().commit();
+        (admin, ali, bob)
+    }
 
+    pub fn deploy_contracts(mut auction_args: AuctionArgsBuilder) -> Self {
+        let mut builder = InMemoryWasmTestBuilder::default();
+        let (admin, ali, bob) = Self::get_accounts(&mut builder);
         let (kyc_hash, kyc_package) = Self::deploy_kyc(&mut builder, &admin);
         Self::add_kyc(&mut builder, &kyc_package, &admin, &admin);
         Self::add_kyc(&mut builder, &kyc_package, &admin, &ali);
         Self::add_kyc(&mut builder, &kyc_package, &admin, &bob);
 
-        let (nft_hash, nft_package) = Self::deploy_nft(&mut builder, &admin, kyc_package);
+        let (nft_hash, nft_package) = Self::deploy_nft(&mut builder, &admin);
 
         let token_id = String::from("custom_token_id");
         let token_meta = btreemap! {
             "origin".to_string() => "fire".to_string()
         };
         let commissions = BTreeMap::new();
+
+        Self::mint_nft(
+            &mut builder,
+            &nft_package,
+            &Key::Account(admin),
+            &token_id,
+            &token_meta,
+            &admin,
+            commissions,
+        );
+
+        auction_args.set_beneficiary(&admin);
+        auction_args.set_token_contract_hash(&nft_package);
+        auction_args.set_kyc_package_hash(&kyc_package);
+        auction_args.set_token_id(&token_id);
+
+        let (auction_hash, auction_package) =
+            Self::deploy_auction(&mut builder, &admin, auction_args.build());
+        Self {
+            builder,
+            auction_hash,
+            auction_package,
+            nft_hash,
+            nft_package,
+            kyc_hash,
+            kyc_package,
+            admin,
+            ali,
+            bob,
+        }
+    }
+
+
+    pub fn deploy_contracts_with_enhanced_nft(mut auction_args: AuctionArgsBuilder) -> Self {
+        let mut builder = InMemoryWasmTestBuilder::default();
+        let (admin, ali, bob) = Self::get_accounts(&mut builder);
+        let (kyc_hash, kyc_package) = Self::deploy_kyc(&mut builder, &admin);
+        Self::add_kyc(&mut builder, &kyc_package, &admin, &admin);
+        Self::add_kyc(&mut builder, &kyc_package, &admin, &ali);
+        Self::add_kyc(&mut builder, &kyc_package, &admin, &bob);
+
+        let (nft_hash, nft_package) = Self::deploy_nft(&mut builder, &admin);
+
+        let token_id = String::from("custom_token_id");
+        let token_meta = btreemap! {
+            "origin".to_string() => "fire".to_string()
+        };
+        let commissions = BTreeMap::new();
+
         Self::mint_nft(
             &mut builder,
             &nft_package,
@@ -112,13 +177,13 @@ impl AuctionContract {
         meta.insert("origin".to_string(), "kyc".to_string());
 
         let kyc_args = runtime_args! {
-            "name" => "kyc",
-            "contract_name" => "kyc",
-            "symbol" => "symbol",
-            "meta" => meta,
-            "admin" => Key::Account(*admin)
+            ARG_NAME => TOKEN_KYC_NAME,
+            ARG_CONTRACT_NAME => KEY_KYC_CONTRACT_NAME,
+            ARG_SYMBOL => TOKEN_KYC_SYMBOL,
+            ARG_META => meta,
+            ARG_ADMIN => Key::Account(*admin)
         };
-        let auction_code = PathBuf::from("kyc-contract.wasm");
+        let auction_code = PathBuf::from(CONTRACT_KYC);
         deploy(
             builder,
             admin,
@@ -131,12 +196,12 @@ impl AuctionContract {
         let contract_hash = query(
             builder,
             Key::Account(*admin),
-            &["kyc_contract_hash_wrapped".to_string()],
+            &[[KEY_KYC_CONTRACT_HASH, "wrapped"].join("_")],
         );
         let contract_package = query(
             builder,
             Key::Account(*admin),
-            &["kyc_package_hash_wrapped".to_string()],
+            &[[KEY_KYC__PACKAGE_HASH, "wrapped"].join("_")],
         );
 
         (contract_hash, contract_package)
@@ -145,20 +210,15 @@ impl AuctionContract {
     pub fn deploy_nft(
         builder: &mut InMemoryWasmTestBuilder,
         admin: &AccountHash,
-        kyc_package_hash: ContractPackageHash,
     ) -> (ContractHash, ContractPackageHash) {
-        use maplit::btreemap;
         let token_args = runtime_args! {
-            "name" => "DragonsNFT",
-            "symbol" => "DRAG",
-            "meta" => btreemap! {
-                "origin".to_string() => "fire".to_string()
-            },
-            "admin" => Key::Account(*admin),
-            "kyc_package_hash" => Key::Hash(kyc_package_hash.value()),
-            "contract_name" => "NFT".to_string()
+            ARG_NAME => TOKEN_CEP_47_NAME,
+            ARG_SYMBOL => TOKEN_CEP_47_SYMBOL,
+            ARG_META => "",
+            ARG_ADMIN => Key::Account(*admin),
+            ARG_CONTRACT_NAME => KEY_CEP_47_CONTRACT_NAME
         };
-        let nft_code = PathBuf::from("nft-contract.wasm");
+        let nft_code = PathBuf::from(CONTRACT_CEP_47_TOKEN);
         deploy(
             builder,
             admin,
@@ -171,14 +231,59 @@ impl AuctionContract {
         let contract_hash: ContractHash = query(
             builder,
             Key::Account(*admin),
-            &["NFT_contract_hash_wrapped".to_string()],
+            &[[KEY_CEP_47_CONTRACT_HASH, "wrapped"].join("_")],
         );
         let contract_package: ContractPackageHash = query(
             builder,
             Key::Account(*admin),
-            &["NFT_package_hash_wrapped".to_string()],
+            &[[KEY_CEP_47_PACKAGE_HASH, "wrapped"].join("_")],
         );
         (contract_hash, contract_package)
+    }
+
+    pub fn deploy_enhanced_nft(
+        builder: &mut InMemoryWasmTestBuilder,
+        admin: &AccountHash,
+    ) -> (ContractHash, ContractPackageHash) {
+        let token_args = runtime_args! {
+            ARG_COLLECTION_NAME => TOKEN_CEP_78_NAME,
+            ARG_COLLECTION_SYMBOL => TOKEN_CEP_78_SYMBOL,
+            ARG_TOTAL_TOKEN_SUPPLY => 1000_u64,
+            ARG_OWNERSHIP_MODE => 2_u8, // transferable
+            ARG_NFT_KIND => 1_u8, // virtual good
+            ARG_NFT_METADATA_KIND => 2_u8,
+            ARG_JSON_SCHEMA => ARG_META,
+            ARG_IDENTIFIER_MODE => 1_u8,
+            ARG_METADATA_MUTABILITY => 0_u8,
+        };
+        let nft_code = PathBuf::from(CONTRACT_CEP_78_TOKEN);
+
+        deploy(
+            builder,
+            admin,
+            &DeploySource::Code(nft_code),
+            token_args,
+            true,
+            None,
+        );
+
+        let account = builder.get_expected_account(*admin);
+        let contract_hash = account
+            .named_keys()
+            .get(KEY_CEP_78_CONTRACT_HASH)
+            .expect("must have contract hash key as part of contract creation")
+            .into_hash()
+            .map(ContractHash::new)
+            .expect("must be contract hash");
+        let package_hash = account
+            .named_keys()
+            .get(KEY_CEP_78_PACKAGE_HASH)
+            .expect("must have package hash key as part of contract creation")
+            .into_hash()
+            .map(ContractPackageHash::new)
+            .expect("must be contract hash");
+
+        (contract_hash, package_hash)
     }
 
     pub fn deploy_auction(
@@ -186,7 +291,7 @@ impl AuctionContract {
         admin: &AccountHash,
         auction_args: RuntimeArgs,
     ) -> (ContractHash, ContractPackageHash) {
-        let auction_code = PathBuf::from("casper-private-auction-installer.wasm");
+        let auction_code = PathBuf::from(CONTRACT_AUCTION);
         deploy(
             builder,
             admin,
@@ -209,25 +314,6 @@ impl AuctionContract {
         (contract_hash, contract_package)
     }
 
-    pub fn mint_nft_token(
-        &mut self,
-        recipient: &Key,
-        token_id: &str,
-        token_meta: &BTreeMap<String, String>,
-        sender: &AccountHash,
-        commissions: BTreeMap<String, String>,
-    ) {
-        Self::mint_nft(
-            &mut self.builder,
-            &self.nft_package,
-            recipient,
-            token_id,
-            token_meta,
-            sender,
-            commissions,
-        )
-    }
-
     pub fn mint_nft(
         builder: &mut InMemoryWasmTestBuilder,
         nft_package: &ContractPackageHash,
@@ -237,6 +323,8 @@ impl AuctionContract {
         sender: &AccountHash,
         mut commissions: BTreeMap<String, String>,
     ) {
+        if self.has
+
         let mut gauge: BTreeMap<String, String> = BTreeMap::new();
         gauge.insert("gauge".to_string(), "is_gaugy".to_string());
         let mut warehouse: BTreeMap<String, String> = BTreeMap::new();
@@ -248,19 +336,42 @@ impl AuctionContract {
         );
         commissions.insert("comm_rate".to_string(), "55".to_string());
         let args = runtime_args! {
-            "recipient" => *recipient,
-            "token_ids" => Some(vec![token_id.to_string()]),
-            "token_metas" => vec![token_meta.clone()],
-            "token_gauges" => vec![gauge],
-            "token_warehouses" => vec![warehouse],
-            "token_commissions" => vec![commissions],
+            ARG_RECIPIENT => *recipient,
+            TOKEN_IDS => Some(vec![token_id.to_string()]),
+            TOKEN_METAS => vec![token_meta.clone()],
+            TOKEN_GAUGES => vec![gauge],
+            TOKEN_WAREHOUSES => vec![warehouse],
+            TOKEN_COMISSIONS => vec![commissions],
         };
         deploy(
             builder,
             sender,
             &DeploySource::ByPackageHash {
                 package_hash: *nft_package,
-                method: "mint".to_string(),
+                method: METHOD_MINT.to_string(),
+            },
+            args,
+            true,
+            None,
+        );
+    }
+
+    pub fn mint_enhanced_nft(
+        builder: &mut InMemoryWasmTestBuilder,
+        package_hash: &ContractPackageHash,
+        sender: &AccountHash,
+        recipient: &Key,
+    ) {
+        let args = runtime_args! {
+            ARG_TOKEN_OWNER => *recipient,
+            ARG_TOKEN_META_DATA => TOKEN_META,
+        };
+        deploy(
+            builder,
+            sender,
+            &DeploySource::ByPackageHash {
+                package_hash: *package_hash,
+                method: METHOD_MINT.to_string(),
             },
             args,
             true,
@@ -280,11 +391,10 @@ impl AuctionContract {
     ) {
         let mut token_meta = BTreeMap::new();
         token_meta.insert("status".to_string(), "active".to_string());
-        let mut token_commissions: BTreeMap<String, String> = BTreeMap::new();
         let args = runtime_args! {
-            "recipient" => Key::Account(*recipient),
-            "token_id" => Some(recipient.to_string()),
-            "token_meta" => token_meta,
+            ARG_RECIPIENT => Key::Account(*recipient),
+            TOKEN_ID => Some(recipient.to_string()),
+            TOKEN_META => token_meta,
         };
 
         deploy(
@@ -292,7 +402,7 @@ impl AuctionContract {
             admin,
             &DeploySource::ByPackageHash {
                 package_hash: *kyc_package,
-                method: "mint".to_string(),
+                method: METHOD_MINT.to_string(),
             },
             args,
             true,
@@ -300,48 +410,48 @@ impl AuctionContract {
         );
     }
 
-    pub fn bid(&mut self, bidder: &AccountHash, bid: U512, block_time: u64) {
-        let session_code = PathBuf::from("bid-purse.wasm");
+    pub fn bid(&mut self, bidder: &AccountHash, amount: U512, block_time: u64) {
+        let session_code = PathBuf::from(SESSION_BID_PURSE);
         deploy(
             &mut self.builder,
             bidder,
             &DeploySource::Code(session_code),
             runtime_args! {
-                "amount" => bid,
-                "purse_name" => "my_auction_purse",
-                "auction_contract" => self.auction_hash
+                ARG_AMOUNT => amount,
+                PURSE_NAME => PURSE_NAME_VALUE,
+                AUCTION_CONTRACT => self.auction_hash
             },
             true,
             Some(block_time),
         );
     }
 
-    pub fn extend_bid(&mut self, bidder: &AccountHash, bid: U512, block_time: u64) {
+    pub fn extend_bid(&mut self, bidder: &AccountHash, amount: U512, block_time: u64) {
         let session_code = PathBuf::from("extend-bid-purse.wasm");
         deploy(
             &mut self.builder,
             bidder,
             &DeploySource::Code(session_code),
             runtime_args! {
-                "amount" => bid,
-                "purse_name" => "my_auction_purse",
-                "auction_contract" => self.auction_hash
+                ARG_AMOUNT => amount,
+                PURSE_NAME => PURSE_NAME_VALUE,
+                AUCTION_CONTRACT => self.auction_hash
             },
             true,
             Some(block_time),
         );
     }
 
-    pub fn delta_bid(&mut self, bidder: &AccountHash, bid: U512, block_time: u64) {
+    pub fn delta_bid(&mut self, bidder: &AccountHash, amount: U512, block_time: u64) {
         let session_code = PathBuf::from("delta-bid-purse.wasm");
         deploy(
             &mut self.builder,
             bidder,
             &DeploySource::Code(session_code),
             runtime_args! {
-                "amount" => bid,
-                "purse_name" => "my_auction_purse",
-                "auction_contract" => self.auction_hash
+                ARG_AMOUNT => amount,
+                PURSE_NAME => PURSE_NAME_VALUE,
+                AUCTION_CONTRACT => self.auction_hash
             },
             true,
             Some(block_time),

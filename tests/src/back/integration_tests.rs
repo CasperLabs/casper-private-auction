@@ -2,11 +2,6 @@ mod mods;
 
 #[cfg(test)]
 mod tests {
-    use crate::mods::{
-        enums::{TypeAccount, TypeAuction, TypeDeploy, TypeECP},
-        structs::AuctionContract,
-    };
-
     #[test]
     #[should_panic = "User(19)"]
     fn ecp47_english_bids() {
@@ -31,7 +26,7 @@ mod tests {
         let mut test_auction = AuctionContract::default();
         test_auction.deploy_contracts(TypeAuction::English, TypeECP::ECP78);
         const BID_ENGLISH_BUYER_BOB: TypeDeploy = TypeDeploy::Bid(TypeAccount::Bob, 600_u16);
-        test_auction.deploy(BID_ENGLISH_BUYER_BOB);
+        //test_auction.deploy(BID_ENGLISH_BUYER_BOB);
     }
 
     #[test]

@@ -12,8 +12,8 @@ use casper_contract::{
 };
 use casper_private_auction_core::{auction::Auction, bids::Bids, data, AuctionLogic};
 use casper_types::{
-    runtime_args, ApiError, CLType, CLValue, ContractPackageHash, EntryPoint, EntryPointAccess,
-    EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
+    runtime_args, ApiError, CLType, CLTyped, CLValue, ContractPackageHash, EntryPoint,
+    EntryPointAccess, EntryPointType, EntryPoints, Key, Parameter, RuntimeArgs,
 };
 
 #[no_mangle]
@@ -140,7 +140,9 @@ pub extern "C" fn call() {
             .unwrap_or_revert_with(ApiError::User(200)),
     );
     // Transfer the NFT ownership to the auction
-    let token_ids = vec![runtime::get_named_arg::<String>(data::TOKEN_ID)];
+    let token_id: String = runtime::get_named_arg::<String>(data::TOKEN_ID);
+    let token_hash = base16::encode_lower(&runtime::blake2b(&token_id));
+    let token_ids = vec![token_id];
 
     let auction_contract_package_hash = runtime::get_key(&format!(
         "{}_{}",
@@ -157,14 +159,30 @@ pub extern "C" fn call() {
         ))
         .into(),
     );
-    runtime::call_versioned_contract::<()>(
+
+    // // CEP-47
+    // runtime::call_versioned_contract::<()>(
+    //     token_contract_hash,
+    //     None,
+    //     "transfer",
+    //     runtime_args! {
+    //         // CEP-47
+    //         "sender" => Key::Account(runtime::get_caller()),
+    //         "recipient" => auction_contract_package_hash,
+    //         "token_ids" => token_ids,
+    //     },
+    // );
+
+    // CEP-78
+    runtime::call_versioned_contract::<(String, Key)>(
         token_contract_hash,
         None,
         "transfer",
         runtime_args! {
-            "sender" => Key::Account(runtime::get_caller()),
-            "recipient" => auction_contract_package_hash,
-            "token_ids" => token_ids,
+            // CEP-78
+            "source_key" => Key::Account(runtime::get_caller()),
+            "target_key" => auction_key,
+            "token_hash" => token_hash.clone(),
         },
     );
 }

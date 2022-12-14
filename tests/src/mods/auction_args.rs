@@ -1,12 +1,6 @@
-use casper_engine_test_support::{
-    DeployItemBuilder, ExecuteRequestBuilder, InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT,
-    DEFAULT_ACCOUNT_ADDR, DEFAULT_PAYMENT, DEFAULT_RUN_GENESIS_REQUEST,
-};
-
-use casper_execution_engine::storage::global_state::in_memory::InMemoryGlobalState;
 use casper_types::{
-    account::AccountHash, runtime_args, ContractHash, ContractPackageHash, Key, PublicKey,
-    RuntimeArgs, SecretKey, U512,
+    account::AccountHash, runtime_args, ContractPackageHash, Key, PublicKey, RuntimeArgs,
+    SecretKey, U512,
 };
 
 #[derive(Debug)]
@@ -32,36 +26,37 @@ pub struct AuctionArgsBuilder {
     minimum_bid_step: Option<U512>,
     marketplace_account: AccountHash,
     marketplace_commission: u32,
+    has_enhanced_nft: bool,
 }
 
 impl AuctionArgsBuilder {
-    pub fn new_with_necessary(
-        beneficiary: &AccountHash,
-        token_contract_hash: &ContractPackageHash,
-        kyc_package_hash: &ContractPackageHash,
-        token_id: &str,
-        english: bool,
-        start_time: u64,
-    ) -> Self {
-        AuctionArgsBuilder {
-            beneficiary_account: *beneficiary,
-            token_contract_hash: *token_contract_hash,
-            kyc_package_hash: *kyc_package_hash,
-            is_english: english,
-            starting_price: None,
-            reserve_price: U512::from(1000),
-            token_id: token_id.to_string(),
-            start_time,
-            cancellation_time: 3000,
-            end_time: 3500,
-            name: "test".to_string(),
-            bidder_count_cap: None,
-            auction_timer_extension: None,
-            minimum_bid_step: None,
-            marketplace_account: AccountHash::new([11_u8; 32]),
-            marketplace_commission: 75,
-        }
-    }
+    // pub fn new_with_necessary(
+    //     beneficiary: &AccountHash,
+    //     token_contract_hash: &ContractPackageHash,
+    //     kyc_package_hash: &ContractPackageHash,
+    //     token_id: &str,
+    //     english: bool,
+    //     start_time: u64,
+    // ) -> Self {
+    //     AuctionArgsBuilder {
+    //         beneficiary_account: *beneficiary,
+    //         token_contract_hash: *token_contract_hash,
+    //         kyc_package_hash: *kyc_package_hash,
+    //         is_english: english,
+    //         starting_price: None,
+    //         reserve_price: U512::from(1000),
+    //         token_id: token_id.to_string(),
+    //         start_time,
+    //         cancellation_time: 3000,
+    //         end_time: 3500,
+    //         name: "test".to_string(),
+    //         bidder_count_cap: None,
+    //         auction_timer_extension: None,
+    //         minimum_bid_step: None,
+    //         marketplace_account: AccountHash::new([11_u8; 32]),
+    //         marketplace_commission: 75,
+    //     }
+    // }
 
     pub fn set_name(&mut self, name: &str) {
         self.name = name.to_string();
@@ -123,6 +118,18 @@ impl AuctionArgsBuilder {
         self.minimum_bid_step = minimum_bid_step;
     }
 
+    pub fn marketplace_commission(&mut self, marketplace_commission: u32) {
+        self.marketplace_commission = marketplace_commission;
+    }
+
+    pub fn set_has_enhanced_nft(&mut self) {
+        self.has_enhanced_nft = true;
+    }
+
+    pub fn has_enhanced_nft(&mut self) -> bool {
+        self.has_enhanced_nft
+    }
+
     pub fn build(&self) -> RuntimeArgs {
         runtime_args! {
             "beneficiary_account"=>Key::Account(self.beneficiary_account),
@@ -174,6 +181,7 @@ impl Default for AuctionArgsBuilder {
             minimum_bid_step: None,
             marketplace_account: AccountHash::new([11_u8; 32]),
             marketplace_commission: 75,
+            has_enhanced_nft: false,
         }
     }
 }

@@ -347,8 +347,8 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let current_winner: Option<Key> = None;
     let finalized = false;
     let bidder_count_cap = runtime::get_named_arg::<Option<u64>>(BIDDER_NUMBER_CAP);
-    // Get commissions from nft
 
+    // Get commissions from nft
     let commissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
         ContractPackageHash::from(token_contract_hash),
         None,
@@ -366,8 +366,8 @@ pub fn create_auction_named_keys() -> NamedKeys {
 
     let auction_timer_extension = runtime::get_named_arg::<Option<u64>>(AUCTION_TIMER_EXTENSION);
     let minimum_bid_step = runtime::get_named_arg::<Option<U512>>(MINIMUM_BID_STEP);
-    let marketplace_commission = runtime::get_named_arg::<u32>(MARKETPLACE_COMMISSION);
     let marketplace_account = runtime::get_named_arg::<AccountHash>(MARKETPLACE_ACCOUNT);
+    let marketplace_commission = runtime::get_named_arg::<u32>(MARKETPLACE_COMMISSION);
 
     let mut named_keys = named_keys!(
         (OWNER, token_owner),

@@ -5,7 +5,6 @@ members = [
     "casper-private-auction-installer",
     "bid-purse",
     "tests",
-    "example/casper-private-auction-tests",
 ]
 
 [profile.release]

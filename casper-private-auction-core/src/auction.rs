@@ -1,3 +1,4 @@
+use alloc::{string::String, vec};
 use casper_contract::{
     contract_api::{
         runtime::{self, get_call_stack},
@@ -87,32 +88,43 @@ impl Auction {
     }
 
     fn auction_transfer_token(recipient: Key) {
-        let auction_key: Key = {
+        let (contract_hash, contract_package_hash): (Key, Key) = {
             let call_stack = runtime::get_call_stack();
             let caller: CallStackElement = call_stack
                 .last()
-                .unwrap_or_revert_with(AuctionError::CallStackTooShort)
+                .unwrap_or_revert_with(AuctionError::InvalidCaller)
                 .clone();
             match caller {
                 CallStackElement::StoredContract {
                     contract_package_hash,
-                    contract_hash: _,
-                } => Key::Hash(contract_package_hash.value()),
-                _ => runtime::revert(AuctionError::InvalidCaller),
+                    contract_hash,
+                } => (
+                    Key::Hash(contract_hash.value()),
+                    Key::Hash(contract_package_hash.value()),
+                ),
+                _ => (
+                    runtime::revert(AuctionError::InvalidCaller),
+                    runtime::revert(AuctionError::InvalidCaller),
+                ),
             }
         };
-        let mut token_ids = alloc::vec::Vec::new();
-        token_ids.push(AuctionData::get_token_id());
-        runtime::call_versioned_contract(
+        let token_id: String = AuctionData::get_token_id();
+        let token_hash = base16::encode_lower(&runtime::blake2b(&token_id));
+        let token_ids = vec![token_id];
+        runtime::call_versioned_contract::<(String, Key)>(
             AuctionData::get_nft_hash(),
             None,
             "transfer",
             runtime_args! {
-              "sender" => auction_key,
-              "recipient" => recipient,
-              "token_ids" => token_ids,
+            //   "sender" => contract_package_hash,
+            //   "recipient" => recipient,
+            //   "token_ids" => token_ids,
+            // CEP-78
+            "source_key" => contract_hash,
+            "target_key" => recipient,
+            "token_hash" => token_hash,
             },
-        )
+        );
     }
 }
 

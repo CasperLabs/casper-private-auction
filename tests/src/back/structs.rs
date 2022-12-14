@@ -25,27 +25,27 @@ impl fmt::Debug for AuctionContract {
         f.debug_struct("AuctionContract")
             .field(
                 get_contracts_name_constants(KYC).0,
-                &self.contract_hashes.get(&KYC).unwrap(),
+                &self.contract_hashes.get(&KYC),
             )
             .field(
                 get_contracts_name_constants(NFT_ECP47).0,
-                &self.contract_hashes.get(&NFT_ECP47).unwrap(),
+                &self.contract_hashes.get(&NFT_ECP47),
             )
             .field(
                 get_contracts_name_constants(KYC).0,
-                &self.package_hashes.get(&KYC).unwrap(),
+                &self.package_hashes.get(&KYC),
             )
             .field(
                 get_contracts_name_constants(NFT_ECP47).0,
-                &self.package_hashes.get(&NFT_ECP47).unwrap(),
+                &self.package_hashes.get(&NFT_ECP47),
             )
             .field(
                 get_contracts_name_constants(NFT_ECP78).0,
-                &self.contract_hashes.get(&NFT_ECP78).unwrap(),
+                &self.contract_hashes.get(&NFT_ECP78),
             )
             .field(
                 get_contracts_name_constants(NFT_ECP78).0,
-                &self.package_hashes.get(&NFT_ECP78).unwrap(),
+                &self.package_hashes.get(&NFT_ECP78),
             )
             .field(
                 get_contracts_name_constants(TypeDeploy::Auction(TypeAuction::English)).0,

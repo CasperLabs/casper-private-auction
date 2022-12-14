@@ -27,7 +27,7 @@ pub enum TypeDeploy {
     GrantGateKeeper,
     GrantBuyer(TypeAccount),
     Nft(TypeECP),
-    Mint,
+    Mint(TypeECP),
     Auction(TypeAuction),
     Bid(TypeAccount, u16),
 }
