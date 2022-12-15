@@ -42,22 +42,22 @@ pub struct AuctionContract {
 }
 
 impl AuctionContract {
-    pub fn deploy_contracts_with_default_args(english: bool, start_time: u64) -> Self {
+    pub fn deploy_auction_with_default_args(english: bool, start_time: u64) -> Self {
         let mut auction_args = AuctionArgsBuilder::default();
         if !english {
             auction_args.set_dutch();
         }
         auction_args.set_start_time(start_time);
         let builder = InMemoryWasmTestBuilder::default();
-        Self::deploy(builder, auction_args)
+        Self::deploy_contracts(builder, auction_args)
     }
 
-    pub fn deploy_contracts(auction_args: AuctionArgsBuilder) -> Self {
+    pub fn deploy_auction(auction_args: AuctionArgsBuilder) -> Self {
         let builder = InMemoryWasmTestBuilder::default();
         if auction_args.has_enhanced_nft() {
-            Self::deploy_with_enhanced_nft(builder, auction_args)
+            Self::deploy_contracts_with_enhanced_nft(builder, auction_args)
         } else {
-            Self::deploy(builder, auction_args)
+            Self::deploy_contracts(builder, auction_args)
         }
     }
 
@@ -79,7 +79,7 @@ impl AuctionContract {
         (admin, ali, bob)
     }
 
-    fn deploy(
+    fn deploy_contracts(
         mut builder: WasmTestBuilder<InMemoryGlobalState>,
         mut auction_args: AuctionArgsBuilder,
     ) -> Self {
@@ -112,7 +112,7 @@ impl AuctionContract {
         auction_args.set_token_id(TOKEN_ID);
 
         let (auction_hash, auction_package) =
-            Self::deploy_auction(&mut builder, &admin, auction_args.build());
+            Self::deploy(&mut builder, &admin, auction_args.build());
 
         Self {
             builder,
@@ -128,7 +128,7 @@ impl AuctionContract {
         }
     }
 
-    fn deploy_with_enhanced_nft(
+    fn deploy_contracts_with_enhanced_nft(
         mut builder: WasmTestBuilder<InMemoryGlobalState>,
         mut auction_args: AuctionArgsBuilder,
     ) -> Self {
@@ -153,7 +153,7 @@ impl AuctionContract {
         auction_args.set_kyc_package_hash(&kyc_package);
 
         let (auction_hash, auction_package) =
-            Self::deploy_auction(&mut builder, &admin, auction_args.build());
+            Self::deploy(&mut builder, &admin, auction_args.build());
 
         Self {
             builder,
@@ -286,7 +286,7 @@ impl AuctionContract {
         (contract_hash, package_hash)
     }
 
-    pub fn deploy_auction(
+    pub fn deploy(
         builder: &mut InMemoryWasmTestBuilder,
         admin: &AccountHash,
         auction_args: RuntimeArgs,

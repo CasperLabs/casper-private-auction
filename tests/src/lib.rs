@@ -21,7 +21,7 @@ mod tests {
     #[test]
     fn english_auction_bid_finalize_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         assert!(now < auction_contract.get_end());
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now);
@@ -37,7 +37,7 @@ mod tests {
     #[test]
     fn english_auction_cancel_only_bid_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         assert!(now < auction_contract.get_end());
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1);
         auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3);
@@ -50,7 +50,7 @@ mod tests {
     #[should_panic = "User(3)"]
     fn english_auction_bid_cancel_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         assert!(now < auction_contract.get_end());
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1);
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now + 2);
@@ -71,7 +71,7 @@ mod tests {
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_starting_price(Some(U512::from(40000)));
         auction_args.set_dutch();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
         assert!(auction_contract.is_finalized());
         assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
@@ -86,7 +86,7 @@ mod tests {
     #[should_panic = "User(0)"]
     fn english_auction_early_finalize_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.finalize(&auction_contract.admin.clone(), now + 300);
     }
 
@@ -98,7 +98,7 @@ mod tests {
     #[should_panic = "User(2)"]
     fn english_auction_bid_too_late_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.bid(
             &auction_contract.bob.clone(),
             U512::from(40000),
@@ -111,7 +111,7 @@ mod tests {
     #[should_panic = "User(19)"]
     fn english_auction_bid_too_low_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(1), now + 1000);
     }
 
@@ -122,7 +122,7 @@ mod tests {
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_starting_price(Some(U512::from(40000)));
         auction_args.set_dutch();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
     }
 
@@ -131,7 +131,7 @@ mod tests {
     #[should_panic = "User(4)"]
     fn english_auction_bid_after_finalized_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.finalize(&auction_contract.admin.clone(), now + 3500);
         assert!(auction_contract.is_finalized());
         auction_contract.finalize(&auction_contract.admin.clone(), now + 3501);
@@ -146,7 +146,7 @@ mod tests {
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_starting_price(Some(U512::from(40000)));
         auction_args.set_dutch();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1001);
     }
@@ -156,7 +156,7 @@ mod tests {
     #[should_panic = "User(6)"]
     fn english_auction_no_bid_cancel_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 2000);
     }
 
@@ -164,7 +164,7 @@ mod tests {
     #[should_panic = "User(7)"]
     fn english_auction_bid_late_cancel_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1);
         auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 3000);
     }
@@ -208,32 +208,14 @@ mod tests {
             HAS_ENHANCED_NFT => false
         };
 
-        AuctionContract::deploy_auction(&mut builder, &admin, auction_args);
+        AuctionContract::deploy(&mut builder, &admin, auction_args);
     }
 
     // Deploying with wrong times reverts with User(9) error
     #[test]
     #[should_panic = "User(9)"]
     fn auction_bad_times_test() {
-        let mut builder = InMemoryWasmTestBuilder::default();
-        let (admin, ali, bob) = AuctionContract::get_accounts(&mut builder);
-        builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
-        builder.exec(fund_account(&admin)).expect_success().commit();
-        builder.exec(fund_account(&ali)).expect_success().commit();
-        builder.exec(fund_account(&bob)).expect_success().commit();
-
-        let (_, kyc_package) = AuctionContract::deploy_kyc(&mut builder, &admin);
-
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &admin);
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &ali);
-        AuctionContract::add_kyc(&mut builder, &kyc_package, &admin, &bob);
-
-        let (_, nft_package) = AuctionContract::deploy_nft(&mut builder, &admin);
-
         let mut auction_args = AuctionArgsBuilder::default();
-        auction_args.set_beneficiary(&admin);
-        auction_args.set_token_contract_hash(&nft_package);
-        auction_args.set_kyc_package_hash(&kyc_package);
         auction_args.set_reserve_price(U512::from(300));
         auction_args.set_start_time(1000_u64);
         auction_args.set_cancellation_time(20_u64);
@@ -241,8 +223,7 @@ mod tests {
         auction_args.set_bidder_count_cap(Some(10_u64));
         auction_args.set_marketplace_commission(75);
         auction_args.set_token_id(TOKEN_ID);
-
-        AuctionContract::deploy_auction(&mut builder, &admin, auction_args.build());
+        AuctionContract::deploy_auction(auction_args);
     }
 
     // Any combination of bad prices on auction deployment returns User(10)
@@ -253,7 +234,7 @@ mod tests {
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_starting_price(None);
         auction_args.set_dutch();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
     }
 
@@ -261,7 +242,7 @@ mod tests {
     #[should_panic = "User(11)"]
     fn english_auction_bid_early_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now - 1000);
     }
 
@@ -291,8 +272,7 @@ mod tests {
         auction_args.set_marketplace_commission(75);
         auction_args.set_token_id(TOKEN_ID);
 
-        let (auction_hash, _) =
-            AuctionContract::deploy_auction(&mut builder, &admin, auction_args.build());
+        let (auction_hash, _) = AuctionContract::deploy(&mut builder, &admin, auction_args.build());
         //bid
         let session_code = PathBuf::from(SESSION_BID_PURSE);
         deploy(
@@ -311,7 +291,7 @@ mod tests {
     #[test]
     fn cancel_auction_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
     }
 
@@ -319,7 +299,7 @@ mod tests {
     #[should_panic = "User(22)"]
     fn cancel_auction_after_bid_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
         auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1001)
     }
@@ -327,7 +307,7 @@ mod tests {
     #[test]
     fn cancel_auction_after_cancelled_bid_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 1000);
         auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1001);
         auction_contract.cancel_auction(&auction_contract.admin.clone(), now + 1002)
@@ -339,7 +319,7 @@ mod tests {
         let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_bidder_count_cap(Some(1));
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
         auction_contract.cancel_bid(&auction_contract.bob.clone(), now + 1002);
@@ -357,7 +337,7 @@ mod tests {
         let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_auction_timer_extension(Some(10000));
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         assert_eq!(auction_contract.get_end(), now + 4000);
 
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
@@ -374,7 +354,7 @@ mod tests {
         let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_minimum_bid_step(Some(U512::from(10000)));
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
         auction_contract.finalize(&auction_contract.admin.clone(), now + 4000);
@@ -389,7 +369,7 @@ mod tests {
         let now = AuctionArgsBuilder::get_now_u64();
         let mut auction_args = AuctionArgsBuilder::default();
         auction_args.set_minimum_bid_step(Some(U512::from(10001)));
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 1000);
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(40000), now + 1001);
     }
@@ -398,7 +378,7 @@ mod tests {
     fn marketplace_commission_test() {
         let now = AuctionArgsBuilder::get_now_u64();
         let auction_args = AuctionArgsBuilder::default();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(
             &auction_contract.ali.clone(),
             U512::from(100000),
@@ -413,7 +393,7 @@ mod tests {
     #[test]
     fn english_auction_bid_extend_finalize_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         assert!(now < auction_contract.get_end());
         auction_contract.extend_bid(&auction_contract.bob.clone(), U512::from(30000), now);
         auction_contract.extend_bid(&auction_contract.bob.clone(), U512::from(10000), now);
@@ -429,7 +409,7 @@ mod tests {
     #[test]
     fn english_auction_bid_delta_finalize_test() {
         let now = AuctionArgsBuilder::get_now_u64();
-        let mut auction_contract = AuctionContract::deploy_contracts_with_default_args(true, now);
+        let mut auction_contract = AuctionContract::deploy_auction_with_default_args(true, now);
         let bob = auction_contract.bob;
         assert!(now < auction_contract.get_end());
         dbg!(auction_contract.get_account_balance(&bob));
@@ -453,7 +433,7 @@ mod tests {
         auction_args.set_has_enhanced_nft();
         auction_args.set_start_time(now + 500);
         auction_args.set_end_time(5000);
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         assert!(now < auction_contract.get_end());
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now + 1000);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(40000), now + 2000);
@@ -474,7 +454,7 @@ mod tests {
         auction_args.set_starting_price(Some(U512::from(40000)));
         auction_args.set_reserve_price(U512::from(20000));
         auction_args.set_has_enhanced_nft();
-        let mut auction_contract = AuctionContract::deploy_contracts(auction_args);
+        let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 3000);
         assert!(auction_contract.is_finalized());
         assert_eq!(auction_contract.bob, auction_contract.get_winner().unwrap());
