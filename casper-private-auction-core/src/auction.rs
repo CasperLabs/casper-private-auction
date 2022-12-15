@@ -97,7 +97,7 @@ impl Auction {
             let call_stack = runtime::get_call_stack();
             let caller: CallStackElement = call_stack
                 .last()
-                .unwrap_or_revert_with(AuctionError::InvalidCaller)
+                .unwrap_or_revert_with(AuctionError::CallStackTooShort)
                 .clone();
             match caller {
                 CallStackElement::StoredContract {
