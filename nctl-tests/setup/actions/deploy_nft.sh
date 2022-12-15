@@ -14,4 +14,4 @@ NFT_INSTALL_DEPLOY=$(casper-client put-deploy\
   | jq .result.deploy_hash\
   | tr -d '"')
 
-  echo NFT_INSTALL_DEPLOY
+  # echo NFT_INSTALL_DEPLOY
