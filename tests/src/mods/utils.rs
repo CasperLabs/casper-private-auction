@@ -140,7 +140,7 @@ pub fn query_dictionary_item(
     builder.query(None, address, &empty_path)
 }
 
-pub fn get_privayte_keys() -> (
+pub fn get_private_keys() -> (
     casper_types::SecretKey,
     casper_types::SecretKey,
     casper_types::SecretKey,

@@ -10,7 +10,7 @@ use super::{
         MARKETPLACE_COMMISSION, MINIMUM_BID_STEP, RESERVE_PRICE, STARTING_PRICE, START_TIME,
         TOKEN_CONTRACT_HASH, TOKEN_ID,
     },
-    utils::get_privayte_keys,
+    utils::get_private_keys,
 };
 
 #[derive(Debug)]
@@ -145,7 +145,7 @@ impl AuctionArgsBuilder {
 
 impl Default for AuctionArgsBuilder {
     fn default() -> Self {
-        let (admin_secret, _, _) = get_privayte_keys();
+        let (admin_secret, _, _) = get_private_keys();
         let now: u64 = Self::get_now_u64();
         AuctionArgsBuilder {
             beneficiary_account: AccountHash::from(&PublicKey::from(&admin_secret)),

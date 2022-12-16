@@ -15,7 +15,7 @@ use super::{
         TOKEN_GAUGES, TOKEN_ID, TOKEN_IDS, TOKEN_KYC_NAME, TOKEN_KYC_SYMBOL, TOKEN_META,
         TOKEN_METAS, TOKEN_WAREHOUSES, WRAPPED,
     },
-    utils::{deploy, fund_account, get_privayte_keys, query, query_dictionary_item, DeploySource},
+    utils::{deploy, fund_account, get_private_keys, query, query_dictionary_item, DeploySource},
 };
 use casper_engine_test_support::{
     InMemoryWasmTestBuilder, WasmTestBuilder, ARG_AMOUNT, DEFAULT_RUN_GENESIS_REQUEST,
@@ -64,7 +64,7 @@ impl AuctionContract {
     pub fn get_accounts(
         builder: &mut WasmTestBuilder<InMemoryGlobalState>,
     ) -> (AccountHash, AccountHash, AccountHash) {
-        let (admin_secret, ali_secret, bob_secret) = get_privayte_keys();
+        let (admin_secret, ali_secret, bob_secret) = get_private_keys();
         let admin_pk: PublicKey = PublicKey::from(&admin_secret);
         let admin = admin_pk.to_account_hash();
         let ali_pk: PublicKey = PublicKey::from(&ali_secret);
@@ -252,7 +252,7 @@ impl AuctionContract {
             ARG_OWNERSHIP_MODE => 2_u8, // must be transferable
             ARG_NFT_KIND => 0_u8, // virtual good
             ARG_NFT_METADATA_KIND => 2_u8, // raw
-            ARG_JSON_SCHEMA => ARG_META,
+            ARG_JSON_SCHEMA => "",
             ARG_IDENTIFIER_MODE => 1_u8, // must be using hash as identifier
             ARG_METADATA_MUTABILITY => 0_u8, // must be immutable as per ARG_IDENTIFIER_MODE
         };
