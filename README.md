@@ -26,13 +26,19 @@ Upon deploying the Auction Contract you need to supply the `contract package has
 - `"beneficiary_account"`: Key-account type of the account you wish to receive any motes that weren't distributed after commissions were paid
 - `"token_contract_hash"`: Key-hash type of the contract package hash of the NFT contract
 - `"kyc_package_hash"`: Key-hash type of the contract package hash of the KYC contract
-- `"format"`: String/Text data to tell the contract to run an english or a dutch auction (only ENGLISH or DUTCH are valid data (capitalization is necessary))
+- `"format"`: String data to tell the contract to run an english or a dutch auction (only ENGLISH or DUTCH are valid data (capitalization is necessary))
 - `"starting_price"`: Option<U512> type. Dutch auction starting price. English auction doesn't use this so it requires this to be None or will fail to deploy.
 - `"reserve_price"`: U512 type of reserve price aka smallest permitted selling price.
-- `"token_id"`: String/Text id of the NFT token put up for auction.
+- `"token_id"`: String id of the NFT token put up for auction.
 - `"start_time"`: u64 UNIX timestamp of auctions starting time.
 - `"cancellation_time"`: u64 UNIX timestamp of the latest time bids on the auction can be cancelled.
 - `"end_time"`: u64 UNIX timestamp of the time the auction will end.
+- `"name"`: String name of this particular account.
+- `"bidder_count_cap"`: Option<u64> type, argument to limit the number of distinct bidder.
+- `"auction_timer_extension"`: Option<u64> type, on successful bids extends the end and cancellation times of the auction.
+- `"minimum_bid_step"`: Option<U512> type, if a value is given the next successful bid needs to be at least step higher than the previous.
+- `"marketplace_account"`: AccountHash, account hash of the markeplace.
+- `"marketplace_commission"`: u32, commission of the markeplace.
 
 ## Usage
 
@@ -94,16 +100,17 @@ Artifact removal command. (`.wasm` files, `target` folders)
 
 ## Rust version
 
-This contract was compiled and ran during development using `1.55.0-nightly (868c702d0 2021-06-30)`
+This contract was compiled and ran during development using `rustc 1.68.0-nightly (0468a00ae 2022-12-17)`
 
 ## Casper contract sdk version
 
-casper-types = "1.3.3"
-casper-contract = "1.3.3"
-casper-engine-test-support = "1.3.3"
+casper-types = "1.5.0"
+casper-contract = "1.4.4"
+casper-engine-test-support = "2.2.0"
+casper-execution-engine = "2.0.1"
 
-### Date 6 September 2021
+### Date 19 December 2022
 
 ### Contact
 
-Smart contracts for private NFT auctions. Please contact Alexander Limonov (alimonov@casperlabs.io) with any questions.
+Smart contracts for private NFT auctions. Please contact Alexander Limonov (alimonov@casperlabs.io) or Gregory Roussac (gregory@casperlabs.io) with any questions.
