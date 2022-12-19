@@ -10,7 +10,6 @@ edition = "2018"
 casper-contract = "1.4.4"
 casper-types = "1.5"
 casper-private-auction-core = { path = "../casper-private-auction-core" }
-base16 = { version = "0.2", default-features = false, features = ["alloc"] }
 
 [[bin]]
 name = "casper-private-auction-installer"
