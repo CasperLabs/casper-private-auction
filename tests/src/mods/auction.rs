@@ -147,7 +147,6 @@ impl AuctionContract {
             &admin,
             &Key::Account(admin),
         );
-        auction_args.set_token_id(TOKEN_META);
         auction_args.set_beneficiary(&admin);
         auction_args.set_token_contract_hash(&enhanced_nft_package);
         auction_args.set_kyc_package_hash(&kyc_package);

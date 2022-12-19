@@ -10,7 +10,7 @@ mod tests {
             BIDDER_COUNT_CAP, CANCELLATION_TIME, END_TIME, FORMAT, HAS_ENHANCED_NFT,
             KEY_AUCTION_CONTRACT_NAME, KEY_KYC_PACKAGE_HASH, MARKETPLACE_ACCOUNT,
             MARKETPLACE_COMMISSION, MINIMUM_BID_STEP, RESERVE_PRICE, SESSION_BID_PURSE,
-            STARTING_PRICE, START_TIME, TOKEN_CONTRACT_HASH, TOKEN_ID,
+            STARTING_PRICE, START_TIME, TOKEN_CONTRACT_HASH, TOKEN_HASH, TOKEN_ID,
         },
         utils::{deploy, fund_account, DeploySource},
     };
@@ -433,6 +433,7 @@ mod tests {
         auction_args.set_has_enhanced_nft();
         auction_args.set_start_time(now + 500);
         auction_args.set_end_time(5000);
+        auction_args.set_token_id(TOKEN_HASH);
         let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         assert!(now < auction_contract.get_end());
         auction_contract.bid(&auction_contract.ali.clone(), U512::from(30000), now + 1000);
@@ -454,6 +455,7 @@ mod tests {
         auction_args.set_starting_price(Some(U512::from(40000)));
         auction_args.set_reserve_price(U512::from(20000));
         auction_args.set_has_enhanced_nft();
+        auction_args.set_token_id(TOKEN_HASH);
         let mut auction_contract = AuctionContract::deploy_auction(auction_args);
         auction_contract.bid(&auction_contract.bob.clone(), U512::from(30000), now + 3000);
         assert!(auction_contract.is_finalized());

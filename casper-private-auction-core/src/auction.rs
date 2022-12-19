@@ -130,7 +130,6 @@ impl Auction {
             );
         } else {
             // CEP-78
-            let token_hash = base16::encode_lower(&runtime::blake2b(&token_id));
             runtime::call_versioned_contract::<(String, Key)>(
                 AuctionData::get_nft_hash(),
                 None,
@@ -138,7 +137,7 @@ impl Auction {
                 runtime_args! {
                     SOURCE_KEY => contract_hash,
                     TARGET_KEY => recipient,
-                    TOKEN_HASH => token_hash,
+                    TOKEN_HASH => token_id,
                 },
             );
         }

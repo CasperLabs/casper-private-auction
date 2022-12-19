@@ -152,8 +152,7 @@ pub extern "C" fn call() {
     );
     // Transfer the NFT ownership to the auction
     let token_id: String = runtime::get_named_arg::<String>(TOKEN_ID);
-    let token_hash = base16::encode_lower(&runtime::blake2b(&token_id));
-    let token_ids = vec![token_id];
+    let token_ids = vec![token_id.clone()];
 
     let auction_contract_package_hash =
         runtime::get_key(&format!("{contract_name}_{AUCTION_PACKAGE_HASH}"))
@@ -169,6 +168,7 @@ pub extern "C" fn call() {
     );
 
     let has_enhanced_nft = runtime::get_named_arg::<bool>(HAS_ENHANCED_NFT);
+
     if !has_enhanced_nft {
         // CEP-47 Transfer
         runtime::call_versioned_contract::<()>(
@@ -190,7 +190,7 @@ pub extern "C" fn call() {
             runtime_args! {
                 SOURCE_KEY => Key::Account(runtime::get_caller()),
                 TARGET_KEY => auction_key,
-                TOKEN_HASH => token_hash,
+                TOKEN_HASH => token_id,
             },
         );
     }

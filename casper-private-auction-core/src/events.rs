@@ -67,7 +67,7 @@ pub fn emit(event: &AuctionEvent) {
                 "winner",
                 match winner {
                     Some((bidder, bid)) => {
-                        format!("{}:{}", bidder, bid)
+                        format!("{bidder}:{bid}")
                     }
                     None => "None".to_string(),
                 },

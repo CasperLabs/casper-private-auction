@@ -52,6 +52,8 @@ pub const ARG_TOKEN_META_DATA: &str = "token_meta_data";
 // TODO fetch those const from core constants
 pub const TOKEN_ID: &str = "token_id";
 pub const TOKEN_META: &str = "token_meta";
+// TOKEN_HASH = base16::encode_lower(&runtime::blake2b(TOKEN_META));
+pub const TOKEN_HASH: &str = "14e3a85361c4b486208896334e391b627fc9f62b92766c7d52893881c679676d";
 pub const ARG_TOKEN_OWNER: &str = "token_owner";
 pub const START_TIME: &str = "start_time";
 pub const BID: &str = "bid";
