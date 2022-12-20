@@ -15,7 +15,8 @@ pub use casper_types::{
 
 use crate::{
     constants::{
-        BID, BID_PURSE, RECIPIENT, SENDER, SOURCE_KEY, TARGET_KEY, TOKEN_HASH, TOKEN_IDS, TRANSFER,
+        AUCTION_CONTRACT_HASH, AUCTION_PACKAGE_HASH, BID, BID_PURSE, RECIPIENT, SENDER, SOURCE_KEY,
+        TARGET_KEY, TOKEN_HASH, TOKEN_IDS, TRANSFER,
     },
     error::AuctionError,
 };
@@ -93,26 +94,10 @@ impl Auction {
     }
 
     fn auction_transfer_token(recipient: Key) {
-        let (Some(contract_hash), Some(contract_package_hash)) = ({
-            let call_stack = runtime::get_call_stack();
-            let caller: CallStackElement = call_stack
-                .last()
-                .unwrap_or_revert_with(AuctionError::CallStackTooShort)
-                .clone();
-            match caller {
-                CallStackElement::StoredContract {
-                    contract_package_hash,
-                    contract_hash,
-                } => (
-                    Some(Key::Hash(contract_hash.value())),
-                    Some(Key::Hash(contract_package_hash.value())),
-                ),
-                _ => (None, None),
-            }
-        }) else {
-            runtime::revert(AuctionError::InvalidCaller);
-        };
-
+        let contract_hash = runtime::get_key(AUCTION_CONTRACT_HASH)
+            .unwrap_or_revert_with(AuctionError::NamedKeyNotFound);
+        let contract_package_hash = runtime::get_key(AUCTION_PACKAGE_HASH)
+            .unwrap_or_revert_with(AuctionError::NamedKeyNotFound);
         let has_enhanced_nft: bool = AuctionData::get_has_enhanced_nft();
         let token_id: String = AuctionData::get_token_id();
         if !has_enhanced_nft {
