@@ -15,8 +15,7 @@ pub use casper_types::{
 
 use crate::{
     constants::{
-        AUCTION_CONTRACT_HASH, AUCTION_PACKAGE_HASH, BID, BID_PURSE, RECIPIENT, SENDER, SOURCE_KEY,
-        TARGET_KEY, TOKEN_HASH, TOKEN_IDS, TRANSFER,
+        BID, BID_PURSE, RECIPIENT, SENDER, SOURCE_KEY, TARGET_KEY, TOKEN_HASH, TOKEN_IDS, TRANSFER,
     },
     error::AuctionError,
 };
@@ -94,12 +93,12 @@ impl Auction {
     }
 
     fn auction_transfer_token(recipient: Key) {
-        let contract_hash = runtime::get_key(AUCTION_CONTRACT_HASH)
-            .unwrap_or_revert_with(AuctionError::NamedKeyNotFound);
-        let contract_package_hash = runtime::get_key(AUCTION_PACKAGE_HASH)
-            .unwrap_or_revert_with(AuctionError::NamedKeyNotFound);
-        let has_enhanced_nft: bool = AuctionData::get_has_enhanced_nft();
-        let token_id: String = AuctionData::get_token_id();
+        let (contract_hash, contract_package_hash, has_enhanced_nft, token_id) = (
+            AuctionData::get_auction_contract_hash(),
+            AuctionData::get_auction_contract_package_hash(),
+            AuctionData::get_has_enhanced_nft(),
+            AuctionData::get_token_id(),
+        );
         if !has_enhanced_nft {
             // CEP-47
             let token_ids = vec![token_id];

@@ -165,7 +165,6 @@ pub extern "C" fn call() {
         },
     );
 
-    // Transfer the NFT ownership to the auction
     let token_id: String = runtime::get_named_arg::<String>(TOKEN_ID);
     let token_ids = vec![token_id.clone()];
 
@@ -188,6 +187,8 @@ pub extern "C" fn call() {
             .into_hash()
             .unwrap_or_revert_with(ApiError::User(200)),
     );
+
+    // Transfer the NFT ownership to the auction
     let has_enhanced_nft = runtime::get_named_arg::<bool>(HAS_ENHANCED_NFT);
     if !has_enhanced_nft {
         // CEP-47 Transfer

@@ -57,6 +57,7 @@ pub enum AuctionError {
     KeyNotUref = 53,
     BidderPurseBadPermission = 54,
     AuctionPurseNotAddable = 55,
+    AuctionContractNotFound = 56,
 }
 
 impl From<AuctionError> for ApiError {
