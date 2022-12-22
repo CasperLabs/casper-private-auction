@@ -4,7 +4,7 @@ members = [
     "casper-private-auction-core",
     "casper-private-auction-installer",
     "bid-purse",
-    "tests"
+    "tests",
 ]
 
 [profile.release]

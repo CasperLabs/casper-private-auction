@@ -1,4 +1,4 @@
-use crate::data::{EVENTS, EVENTS_COUNT};
+use crate::constants::{EVENTS, EVENTS_COUNT};
 use crate::error::AuctionError;
 use alloc::collections::BTreeMap;
 use alloc::format;
@@ -67,7 +67,7 @@ pub fn emit(event: &AuctionEvent) {
                 "winner",
                 match winner {
                     Some((bidder, bid)) => {
-                        format!("{}:{}", bidder, bid)
+                        format!("{bidder}:{bid}")
                     }
                     None => "None".to_string(),
                 },

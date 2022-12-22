@@ -14,7 +14,7 @@ use casper_types::{runtime_args, ApiError, ContractHash, RuntimeArgs, URef, U512
 
 #[no_mangle]
 pub extern "C" fn call() {
-    // You are required to use an argument called "amount" for the amount that you transfer our of a main_purse
+    // You are required to use an argument called "amount" for the amount that you transfer out of a main_purse
     let amount: U512 = runtime::get_named_arg("amount");
     let auction_contract: ContractHash = runtime::get_named_arg("auction_contract");
     let purse_name: String = runtime::get_named_arg("purse_name");

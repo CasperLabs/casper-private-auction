@@ -7,9 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-casper-contract = "1.4.3"
-casper-types = "1.4.6"
-casper-private-auction-core = { path = "../casper-private-auction-core"}
+casper-contract = "1.4.4"
+casper-types = "1.5"
+casper-private-auction-core = { path = "../casper-private-auction-core" }
 
 [[bin]]
 name = "casper-private-auction-installer"

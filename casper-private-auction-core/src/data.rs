@@ -12,6 +12,12 @@ use casper_types::{
 
 use crate::{
     bids::Bids,
+    constants::{
+        AUCTION_PURSE, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_NUMBER_CAP, CANCEL,
+        COMMISSIONS, END_TIME, ENGLISH_FORMAT, EVENTS, EVENTS_COUNT, FINALIZED, FORMAT,
+        HAS_ENHANCED_NFT, KYC_HASH, MARKETPLACE_ACCOUNT, MARKETPLACE_COMMISSION, MINIMUM_BID_STEP,
+        NFT_HASH, OWNER, PRICE, RESERVE, START_PRICE, START_TIME, TOKEN_ID, WINNER,
+    },
     error::AuctionError,
     events::{emit, AuctionEvent},
 };
@@ -21,38 +27,6 @@ use alloc::{
     string::{String, ToString},
 };
 use casper_types::{account::AccountHash, contracts::NamedKeys, Key, U512};
-
-// TODO: Either separate arg name and named key consistently, or not at all
-pub const OWNER: &str = "token_owner";
-pub const BENEFICIARY_ACCOUNT: &str = "beneficiary_account";
-pub const AUCTION_PURSE: &str = "auction_purse";
-pub const NFT_HASH: &str = "token_contract_hash";
-pub const ENGLISH_FORMAT: &str = "english_format";
-pub const TOKEN_ID: &str = "token_id";
-pub const START: &str = "start_time";
-pub const CANCEL: &str = "cancellation_time";
-pub const END: &str = "end_time";
-pub const RESERVE: &str = "reserve_price";
-pub const START_PRICE: &str = "starting_price";
-pub const PRICE: &str = "winning_bid";
-pub const WINNER: &str = "current_winner";
-pub const FINALIZED: &str = "finalized";
-pub const BID: &str = "bid";
-pub const BID_PURSE: &str = "bid_purse";
-pub const CANCEL_FUNC: &str = "cancel_bid";
-pub const FINALIZE_FUNC: &str = "finalize";
-pub const CANCEL_AUCTION_FUNC: &str = "cancel_auction";
-pub const AUCTION_CONTRACT_HASH: &str = "auction_contract_package_hash";
-pub const AUCTION_ACCESS_TOKEN: &str = "auction_access_token";
-pub const EVENTS: &str = "auction_events";
-pub const EVENTS_COUNT: &str = "auction_events_count";
-pub const COMMISSIONS: &str = "commissions";
-pub const KYC_HASH: &str = "kyc_package_hash";
-pub const BIDDER_NUMBER_CAP: &str = "bidder_count_cap";
-pub const AUCTION_TIMER_EXTENSION: &str = "auction_timer_extension";
-pub const MINIMUM_BID_STEP: &str = "minimum_bid_step";
-pub const MARKETPLACE_COMMISSION: &str = "marketplace_commission";
-pub const MARKETPLACE_ACCOUNT: &str = "marketplace_account";
 
 macro_rules! named_keys {
     ( $( ($name:expr, $value:expr) ),* ) => {
@@ -99,6 +73,11 @@ impl AuctionData {
                 .unwrap_or_revert_with(AuctionError::KeyNotHash),
         )
     }
+
+    pub fn get_has_enhanced_nft() -> bool {
+        read_named_key_value::<bool>(HAS_ENHANCED_NFT)
+    }
+
     pub fn get_token_id() -> String {
         read_named_key_value::<String>(TOKEN_ID)
     }
@@ -159,11 +138,11 @@ impl AuctionData {
     }
 
     pub fn get_start() -> u64 {
-        read_named_key_value::<u64>(START)
+        read_named_key_value::<u64>(START_TIME)
     }
 
     pub fn get_end() -> u64 {
-        read_named_key_value::<u64>(END)
+        read_named_key_value::<u64>(END_TIME)
     }
 
     pub fn get_cancel_time() -> u64 {
@@ -244,7 +223,7 @@ impl AuctionData {
             match property {
                 "account" => {
                     let rate = commissions
-                        .get(&format!("{}_rate", actor))
+                        .get(&format!("{actor}_rate"))
                         .unwrap_or_revert_with(AuctionError::MismatchedCommissionAccount);
                     let share_rate = string_to_u16(rate);
                     share_sum += share_rate;
@@ -252,7 +231,7 @@ impl AuctionData {
                 }
                 "rate" => {
                     let account = commissions
-                        .get(&format!("{}_account", actor))
+                        .get(&format!("{actor}_account"))
                         .unwrap_or_revert_with(AuctionError::MismatchedCommissionRate);
                     let share_rate = string_to_u16(value);
                     share_sum += share_rate;
@@ -286,7 +265,7 @@ impl AuctionData {
 
     pub fn increase_auction_times() {
         if let Some(increment) = read_named_key_value::<Option<u64>>(AUCTION_TIMER_EXTENSION) {
-            write_named_key_value(END, AuctionData::get_end() + increment);
+            write_named_key_value(END_TIME, AuctionData::get_end() + increment);
             write_named_key_value(CANCEL, AuctionData::get_cancel_time() + increment);
         }
     }
@@ -294,9 +273,9 @@ impl AuctionData {
 
 // TODO: Rewrite to avoid the match guard
 fn auction_times_match() -> (u64, u64, u64) {
-    let start: u64 = runtime::get_named_arg(START);
+    let start: u64 = runtime::get_named_arg(START_TIME);
     let cancel: u64 = runtime::get_named_arg(CANCEL);
-    let end: u64 = runtime::get_named_arg(END);
+    let end: u64 = runtime::get_named_arg(END_TIME);
     if u64::from(runtime::get_blocktime()) <= start
         && start <= cancel
         && cancel <= end
@@ -323,11 +302,12 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let kyc_contract_hash: [u8; 32] = runtime::get_named_arg::<Key>(KYC_HASH)
         .into_hash()
         .unwrap_or_default();
-    let english_format = match runtime::get_named_arg::<String>("format").as_str() {
+    let english_format = match runtime::get_named_arg::<String>(FORMAT).as_str() {
         "ENGLISH" => true,
         "DUTCH" => false,
         _ => revert(AuctionError::UnknownFormat),
     };
+
     // Consider optimizing away the storage of start price key for English auctions
     let (start_price, reserve_price) = match (
         english_format,
@@ -347,17 +327,23 @@ pub fn create_auction_named_keys() -> NamedKeys {
     let current_winner: Option<Key> = None;
     let finalized = false;
     let bidder_count_cap = runtime::get_named_arg::<Option<u64>>(BIDDER_NUMBER_CAP);
-    // Get commissions from nft
 
-    let commissions_ret: Option<BTreeMap<String, String>> = runtime::call_versioned_contract(
-        ContractPackageHash::from(token_contract_hash),
-        None,
-        "token_commission",
-        runtime_args! {
-            "token_id" => token_id.clone(),
-            "property" => "".to_string(),
-        },
-    );
+    // Get commissions from CEP-47+ nft
+    // Exclude CEP-78 without commissions entrypoint for now
+    let has_enhanced_nft = runtime::get_named_arg::<bool>(HAS_ENHANCED_NFT);
+    let commissions_ret: Option<BTreeMap<String, String>> = if !has_enhanced_nft {
+        runtime::call_versioned_contract(
+            ContractPackageHash::from(token_contract_hash),
+            None,
+            "token_commission",
+            runtime_args! {
+                TOKEN_ID => token_id.clone(),
+                "property" => "".to_string(),
+            },
+        )
+    } else {
+        None
+    };
 
     let commissions = match commissions_ret {
         Some(com) => com,
@@ -366,8 +352,8 @@ pub fn create_auction_named_keys() -> NamedKeys {
 
     let auction_timer_extension = runtime::get_named_arg::<Option<u64>>(AUCTION_TIMER_EXTENSION);
     let minimum_bid_step = runtime::get_named_arg::<Option<U512>>(MINIMUM_BID_STEP);
-    let marketplace_commission = runtime::get_named_arg::<u32>(MARKETPLACE_COMMISSION);
     let marketplace_account = runtime::get_named_arg::<AccountHash>(MARKETPLACE_ACCOUNT);
+    let marketplace_commission = runtime::get_named_arg::<u32>(MARKETPLACE_COMMISSION);
 
     let mut named_keys = named_keys!(
         (OWNER, token_owner),
@@ -375,10 +361,11 @@ pub fn create_auction_named_keys() -> NamedKeys {
         (NFT_HASH, Key::Hash(token_contract_hash)),
         (KYC_HASH, kyc_contract_hash),
         (ENGLISH_FORMAT, english_format),
+        (HAS_ENHANCED_NFT, has_enhanced_nft),
         (TOKEN_ID, token_id),
-        (START, start_time),
+        (START_TIME, start_time),
         (CANCEL, cancellation_time),
-        (END, end_time),
+        (END_TIME, end_time),
         (START_PRICE, start_price),
         (RESERVE, reserve_price),
         (PRICE, winning_bid),
@@ -416,7 +403,7 @@ fn string_to_account_hash(account_string: &str) -> AccountHash {
                 .unwrap_or_revert(),
         )
     } else {
-        AccountHash::from_formatted_str(&format!("account-hash-{}", account_string))
+        AccountHash::from_formatted_str(&format!("account-hash-{account_string}"))
     };
     match account {
         Ok(acc) => acc,

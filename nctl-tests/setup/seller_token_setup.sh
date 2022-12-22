@@ -36,6 +36,12 @@ BUYER_5_KEY=$(nctl-view-user-account user=5\
 BUYER_5_PURSE=$(nctl-view-user-account user=5\
   | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
 
+MARKETPLACE_ACCOUNT_KEY=$(nctl-view-user-account user=6\
+  | grep -Pom1 "(?<=account_hash\": \")account-hash-[0-9|a-z|A-Z]{64}")
+
+MARKETPLACE_ACCOUNT_PURSE=$(nctl-view-user-account user=6\
+  | grep -Po "(?<=main_purse\": \")uref-[0-9|a-z|A-Z]{64}-007")
+
 . setup/actions/deploy_kyc.sh
 
 sleep 90

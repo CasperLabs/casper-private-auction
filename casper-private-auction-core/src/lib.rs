@@ -18,6 +18,7 @@ pub mod error;
 #[macro_use]
 pub mod data;
 pub mod bids;
+pub mod constants;
 pub mod events;
 
 pub trait AuctionLogic {

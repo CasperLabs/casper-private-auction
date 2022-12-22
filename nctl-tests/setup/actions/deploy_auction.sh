@@ -18,6 +18,8 @@ START_TIME=`expr $(date "+%s%3N") + 90000`
 CANCEL_TIME=`expr $START_TIME + 300000`
 # plus 10 minutes
 END_TIME=`expr $START_TIME + 600000`
+# Name of the tested auction contract
+NAME="Test_auction_$START_TIME"
 
 AUCTION_INSTALL_DEPLOY=$(casper-client put-deploy\
   --chain-name $NETWORK_NAME\
@@ -25,6 +27,7 @@ AUCTION_INSTALL_DEPLOY=$(casper-client put-deploy\
   --secret-key $USER_1_SECRET_KEY\
   --payment-amount $GAS_LIMIT\
   --session-path $AUCTION_WASM\
+  --session-arg "name:string='$NAME'"\
   --session-arg "beneficiary_account:key='$SELLER_ACCOUNT_ARG'"\
   --session-arg "token_contract_hash:key='$TOKEN_PACKAGE_HASH_ARG'"\
   --session-arg "kyc_package_hash:key='$KYC_PACKAGE_HASH_ARG'"\
@@ -35,10 +38,17 @@ AUCTION_INSTALL_DEPLOY=$(casper-client put-deploy\
   --session-arg "start_time:u64='$START_TIME'"\
   --session-arg "cancellation_time:u64='$CANCEL_TIME'"\
   --session-arg "end_time:u64='$END_TIME'"\
+  --session-arg "bidder_count_cap:opt_u64='10'"\
+  --session-arg "auction_timer_extension:opt_u64='0'"\
+  --session-arg "minimum_bid_step:opt_u512='1'"\
+  --session-arg "marketplace_commission:u32='1'"\
+  --session-arg "marketplace_account:account_hash='$MARKETPLACE_ACCOUNT_KEY'"\
   | jq .result.deploy_hash\
   | tr -d '"')
 
 sleep 90
+
+# echo $AUCTION_INSTALL_DEPLOY
 
 cd $CWD_AUCTION
 
@@ -51,7 +61,7 @@ AUCTION_PACKAGE_HASH=$(casper-client query-state\
   --state-root-hash $STATE\
   --key $SELLER_KEY\
   --node-address $NODE_1_ADDRESS\
-  | jq '.result.stored_value.Account.named_keys[] | select(.name == "auction_contract_package_hash") | .key'\
+  | jq '.result.stored_value.Account.named_keys[] | select(.name | endswith("auction_contract_package_hash")) | .key'\
   | tr -d '"')
 
 AUCTION_CONTRACT_HASH=$(casper-client query-state\

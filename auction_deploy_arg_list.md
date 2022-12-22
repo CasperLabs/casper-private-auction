@@ -12,5 +12,5 @@ name: String, name of this particular account
 bidder_count_cap: Option<u64>, argument to limit the number of distinct bidder.
 auction_timer_extension: Option<u64>, on successful bids extends the end and cancellation times of the auction.
 minimum_bid_step: Option<U512>, if a value is given the next successful bid needs to be at least step higher than the previous.
-marketplace_account: AccountHash,
-marketplace_commission: u32,
+marketplace_account: AccountHash, account hash of the markeplace.
+marketplace_commission: u32, commission of the markeplace.

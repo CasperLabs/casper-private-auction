@@ -5,10 +5,12 @@ prepare:
 rust-test-only:
 	cargo test -p tests
 
-copy-wasm-file-to-test:
+copy-wasm-files-to-tests:
 	cp target/wasm32-unknown-unknown/release/*.wasm tests/wasm
+	cp nctl-tests/setup/fixtures/contracts/cask-token.wasm tests/wasm/nft-contract.wasm
+	cp nctl-tests/setup/fixtures/contracts/civic-token.wasm tests/wasm/kyc-contract.wasm
 
-test: build-contract copy-wasm-file-to-test rust-test-only
+test: build-contract copy-wasm-files-to-tests rust-test-only
 
 clippy:
 	cargo clippy --all-targets --all -- -D warnings
