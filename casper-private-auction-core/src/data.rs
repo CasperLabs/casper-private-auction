@@ -13,10 +13,11 @@ use casper_types::{
 use crate::{
     bids::Bids,
     constants::{
-        AUCTION_PURSE, AUCTION_TIMER_EXTENSION, BENEFICIARY_ACCOUNT, BIDDER_NUMBER_CAP, CANCEL,
-        COMMISSIONS, END_TIME, ENGLISH_FORMAT, EVENTS, EVENTS_COUNT, FINALIZED, FORMAT,
-        HAS_ENHANCED_NFT, KYC_HASH, MARKETPLACE_ACCOUNT, MARKETPLACE_COMMISSION, MINIMUM_BID_STEP,
-        NFT_HASH, OWNER, PRICE, RESERVE, START_PRICE, START_TIME, TOKEN_ID, WINNER,
+        AUCTION_CONTRACT_HASH, AUCTION_PACKAGE_HASH, AUCTION_PURSE, AUCTION_TIMER_EXTENSION,
+        BENEFICIARY_ACCOUNT, BIDDER_NUMBER_CAP, CANCEL, COMMISSIONS, END_TIME, ENGLISH_FORMAT,
+        EVENTS, EVENTS_COUNT, FINALIZED, FORMAT, HAS_ENHANCED_NFT, KYC_HASH, MARKETPLACE_ACCOUNT,
+        MARKETPLACE_COMMISSION, MINIMUM_BID_STEP, NFT_HASH, OWNER, PRICE, RESERVE, START_PRICE,
+        START_TIME, TOKEN_ID, WINNER,
     },
     error::AuctionError,
     events::{emit, AuctionEvent},
@@ -165,6 +166,16 @@ impl AuctionData {
 
     pub fn get_token_contract_hash() -> Option<Key> {
         read_named_key_value::<Option<Key>>(NFT_HASH)
+    }
+
+    pub fn get_auction_contract_hash() -> Key {
+        runtime::get_key(AUCTION_CONTRACT_HASH)
+            .unwrap_or_revert_with(AuctionError::AuctionContractNotFound)
+    }
+
+    pub fn get_auction_contract_package_hash() -> Key {
+        runtime::get_key(AUCTION_PACKAGE_HASH)
+            .unwrap_or_revert_with(AuctionError::AuctionContractNotFound)
     }
 
     pub fn is_auction_live() -> bool {

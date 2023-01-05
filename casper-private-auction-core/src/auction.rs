@@ -93,28 +93,12 @@ impl Auction {
     }
 
     fn auction_transfer_token(recipient: Key) {
-        let (Some(contract_hash), Some(contract_package_hash)) = ({
-            let call_stack = runtime::get_call_stack();
-            let caller: CallStackElement = call_stack
-                .last()
-                .unwrap_or_revert_with(AuctionError::CallStackTooShort)
-                .clone();
-            match caller {
-                CallStackElement::StoredContract {
-                    contract_package_hash,
-                    contract_hash,
-                } => (
-                    Some(Key::Hash(contract_hash.value())),
-                    Some(Key::Hash(contract_package_hash.value())),
-                ),
-                _ => (None, None),
-            }
-        }) else {
-            runtime::revert(AuctionError::InvalidCaller);
-        };
-
-        let has_enhanced_nft: bool = AuctionData::get_has_enhanced_nft();
-        let token_id: String = AuctionData::get_token_id();
+        let (contract_hash, contract_package_hash, has_enhanced_nft, token_id) = (
+            AuctionData::get_auction_contract_hash(),
+            AuctionData::get_auction_contract_package_hash(),
+            AuctionData::get_has_enhanced_nft(),
+            AuctionData::get_token_id(),
+        );
         if !has_enhanced_nft {
             // CEP-47
             let token_ids = vec![token_id];

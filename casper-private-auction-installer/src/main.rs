@@ -56,10 +56,18 @@ pub extern "C" fn get_bid() {
 
 #[no_mangle]
 pub extern "C" fn init() {
+    // Creates purse in the auction contract's context
     if runtime::get_key(AUCTION_PURSE).is_none() {
         let purse = system::create_purse();
         runtime::put_key(AUCTION_PURSE, purse.into());
         Bids::init();
+    }
+    // Saves the contract hash and package hash in the auction contract's named keys
+    if runtime::get_key(AUCTION_CONTRACT_HASH).is_none() {
+        let auction_contract_hash = runtime::get_named_arg::<Key>(AUCTION_CONTRACT_HASH);
+        let auction_contract_package_hash = runtime::get_named_arg::<Key>(AUCTION_PACKAGE_HASH);
+        runtime::put_key(AUCTION_CONTRACT_HASH, auction_contract_hash);
+        runtime::put_key(AUCTION_PACKAGE_HASH, auction_contract_package_hash);
     }
 }
 
@@ -111,7 +119,10 @@ pub fn get_entry_points() -> EntryPoints {
 
     entry_points.add_entry_point(EntryPoint::new(
         INIT,
-        vec![],
+        vec![
+            Parameter::new(AUCTION_CONTRACT_HASH, CLType::Key),
+            Parameter::new(AUCTION_PACKAGE_HASH, CLType::Key),
+        ],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
@@ -141,16 +152,19 @@ pub extern "C" fn call() {
         storage::new_uref(auction_hash).into(),
     );
 
-    // Create purse in the contract's context
-    runtime::call_contract::<()>(auction_hash, INIT, runtime_args! {});
+    let package_key = runtime::get_key(&format!("{contract_name}_{AUCTION_PACKAGE_HASH}"))
+        .unwrap_or_revert_with(ApiError::User(204));
 
-    // Hash of the NFT contract put up for auction
-    let token_contract_hash = ContractPackageHash::new(
-        runtime::get_named_arg::<Key>(NFT_HASH)
-            .into_hash()
-            .unwrap_or_revert_with(ApiError::User(200)),
+    // Calls INIT entry point of the new auction contract
+    runtime::call_contract::<()>(
+        auction_hash,
+        INIT,
+        runtime_args! {
+            AUCTION_CONTRACT_HASH => auction_key,
+            AUCTION_PACKAGE_HASH => package_key
+        },
     );
-    // Transfer the NFT ownership to the auction
+
     let token_id: String = runtime::get_named_arg::<String>(TOKEN_ID);
     let token_ids = vec![token_id.clone()];
 
@@ -167,12 +181,19 @@ pub extern "C" fn call() {
         .into(),
     );
 
-    let has_enhanced_nft = runtime::get_named_arg::<bool>(HAS_ENHANCED_NFT);
+    // Hash of the NFT contract put up for auction
+    let token_contract_package_hash = ContractPackageHash::new(
+        runtime::get_named_arg::<Key>(NFT_HASH)
+            .into_hash()
+            .unwrap_or_revert_with(ApiError::User(200)),
+    );
 
+    // Transfer the NFT ownership to the auction
+    let has_enhanced_nft = runtime::get_named_arg::<bool>(HAS_ENHANCED_NFT);
     if !has_enhanced_nft {
         // CEP-47 Transfer
         runtime::call_versioned_contract::<()>(
-            token_contract_hash,
+            token_contract_package_hash,
             None,
             TRANSFER,
             runtime_args! {
@@ -184,7 +205,7 @@ pub extern "C" fn call() {
     } else {
         // CEP-78 Transfer
         runtime::call_versioned_contract::<(String, Key)>(
-            token_contract_hash,
+            token_contract_package_hash,
             None,
             TRANSFER,
             runtime_args! {
